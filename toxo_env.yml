@@ -8,7 +8,7 @@ channels:
   - conda-forge
   - predector
 dependencies:
-  - snakemake=7.32.4
+  - snakemake==7.32.4
   - salmon
   - cd-hit
   - fastp
