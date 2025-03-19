@@ -2,13 +2,13 @@
 # add software sources and check versions
 # to prepare and run the env: conda env create -f toxo_env.yml && conda activate DeToX
 # to update the env: conda env update --name DeToX --file toxo_env.yml --prune
-name: DeToX
+name: DeToX-A
 channels:
   - bioconda 
   - conda-forge
   - predector
 dependencies:
-  - snakemake
+  - snakemake==7.32.4
   - salmon
   - cd-hit
   - trimmomatic
