@@ -1,8 +1,8 @@
 transcriptome: test/transcriptome.fasta
 output_dir: /path/outputDir
 basename: basename
-memory: 12 # memory in GB, might change later
-threads: 8 # logic threads, not physical cores, for clarity
+memory: 24 # memory in GB, might change later
+threads: 16 # logic threads, not physical cores, for clarity
 R1: test/R1.fastq.gz
 R2: test/R2.fastq.gz
 adapters: test/adapters.fasta
@@ -17,6 +17,8 @@ maxlen: 45000
 signalp_dvalue: "0.7"
 signalp_path: ~/signalp-5.0b/bin/
 wolfPsort_path: ~/WoLFPSort/bin/runWolfPsortSummary
+signalp_path: software/signalp-5.0b/bin/
+wolfPsort_path: software/WoLFPSort/bin/runWolfPsortSummary
 quant: False
 TPMthreshold: "1000"
 wolfpsort: True
