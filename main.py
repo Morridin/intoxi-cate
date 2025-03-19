@@ -2,6 +2,10 @@ from Bio import SeqIO
 import pandas 
 import glob
 
+from snakemake.io import expand, glob_wildcards, directory
+from snakemake.linting.links import config, checkpoints, rules
+
+
 def get_signalp_splits(wildcards):
     import os
     checkpoint_output = checkpoints.split_fasta.get(**wildcards).output[0]
@@ -126,7 +130,7 @@ if 'contaminants' in config and config['contaminants'] not in [None, ""]:
                 line = line.rstrip()
                 if line[0] != '#':
                     blast = line.split()                                        
-                    records.append(blast[0]) # we recover the ID of the significan hits
+                    records.append(blast[0]) # we recover the ID of the significant hits
             infile.close()
             recordIter = SeqIO.parse(open(input.contigs), "fasta")
             with open(output.filtered_contigs, "w") as handle:
@@ -138,7 +142,7 @@ rule detect_orfs:
 #   Description: finds complete orfs within the input nucleotide sequences. 
 #   i'm testing this with orfipy instead of orffinder to leverage multithreading
     input:
-        nucleotide_sequences = rules.filter_contaminants.output.filtered_contigs if config['contaminants'] not in [None, ""] else config['transcriptome'] if 'transcriptome' in config  and config['transcriptome'] != None else rules.assemble_transcriptome.output.assembly
+        nucleotide_sequences = rules.filter_contaminants.output.filtered_contigs if config['contaminants'] not in [None, ""] else config['transcriptome'] if 'transcriptome' in config and config['transcriptome'] is not None else rules.assemble_transcriptome.output.assembly
     output:
         aa_sequences = global_output(config['basename'] + ".faa")
     params:
