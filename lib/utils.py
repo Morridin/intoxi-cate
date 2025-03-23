@@ -53,3 +53,36 @@ def glob_wildcards(path: str) -> str:
     """
     _ = path
     raise NotImplementedError()
+
+def aggregate_splits(wildcards):
+    """
+    ?
+    :param wildcards:
+    :return:
+    """
+    checkpoint_output = snakemake_checkpoints.split_fasta.get(**wildcards).output[0]
+    return expand(global_output("")+"split_files/{i}_summary.signalp5",
+        i=glob_wildcards(join(checkpoint_output, "{i}.faa")).i)
+
+def get_cys_pattern(seq):
+    """
+    ???
+    :param seq:
+    :return:
+    """
+    pattern = ""
+    status = False
+    if not pd.isna(seq) and seq.count('C') >= 4:
+        for char in seq:
+            if char == "C":
+                pattern += "C"
+                status = True
+            else:
+                if status:
+                    pattern += "-"
+                    status = False
+        if pattern[-1] == "-":
+            pattern = pattern[0:-1]
+    if pattern == "":
+        pattern = None
+    return pattern
