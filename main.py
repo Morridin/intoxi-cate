@@ -1,170 +1,169 @@
-from Bio import SeqIO
-import pandas 
-import glob
+from os import makedirs
+from pathlib import Path
 
 from snakemake.io import expand, glob_wildcards, directory
-from snakemake.linting.links import config, checkpoints, rules
+
+from lib import config
+from lib.utils import global_output
 
 
-def get_signalp_splits(wildcards):
-    import os
-    checkpoint_output = checkpoints.split_fasta.get(**wildcards).output[0]
-    return expand(global_output("")+'split_files/{i}.fasta',
-           i=glob_wildcards(os.path.join(checkpoint_output, '{i}.fasta')).i)
+# configfile: "config.yaml"
 
-def fastaToDataframe(fastaPath):
-    sequences = SeqIO.parse(open(fastaPath), 'fasta')
-    data = []
-    for record in sequences:
-        data.append({'ID': record.id, 'Sequence': str(record.seq)})
-    return pandas.DataFrame(data)
+def trim_reads(r1: Path, r2: Path | None, adapters: Path) -> dict[str, Path]:
+    """
+    This function trims the raw reads provided in paths r1 and r2 using what is provided in adapters.
+    :param r1: The path to the forward paired-end or single-end reads file in FASTQ format.
+    :param r2: The path to the reverse paired-end reads file in FASTQ format.
+    :param adapters: The path to the adapters file in FASTA format.
+    :return: The paths to the forward and reverse paired-end reads in FASTA format, as well as their unpaired
+    counterparts, all sorted in a dict with the following keys: r1, (r1_unpaired, r2, r2_unpaired (only if r2 is not None))
+    """
+    assert r1 != "" and r2 != "", "Params r1 and r2 must not be empty!"
 
+    base_path = Path("trimmed_reads")
+    makedirs(base_path, exist_ok=True)
 
-def global_output(path):
-    """ Construit le chemin d'output complet """
-    output_dir = config.get("output_dir", "")
-    if output_dir:
-        return f"{output_dir}/{path}"
+    output = {"r1": global_output(base_path / config.get("R1").split("/")[-1])}
+    num_threads = config.get("threads")
+
+    if r2 is None:
+        subprocess.run(
+            f"trimmomatic SE -threads {num_threads} {r1} {output['r1']} "
+            f"ILLUMINACLIP:{input.adapters}:2:40:15 LEADING:15 TRAILING:15 MINLEN:25 SLIDINGWINDOW:4:15".split(" ")
+        )
+        return output
     else:
-        return path
+        output |= {
+            "r2": global_output(base_path / config.get("R2").split("/")[-1]),
+            "r1_unpaired": global_output(base_path / ("unpaired." + config.get("R1").split("/")[-1])),
+            "r2_unpaired": global_output(base_path / ("unpaired." + config.get("R2").split("/")[-1]))
+        }
+        subprocess.run(
+            f"trimmomatic PE -threads {num_threads} {r1} {r2} "
+            f"{output['r1']} {output['r1_unpaired']} {output['r2']} {output['r2_unpaired']} "
+            f"ILLUMINACLIP:{adapters}:2:40:15 LEADING:15 TRAILING:15 MINLEN:25 SLIDINGWINDOW:4:15".split(" ")
+        )
+        return output
 
-#configfile: "config.yaml"
+def assemble_transcriptome():
+    """
+    Assembles a transcriptome if it is not provided. Uses Trinity
+    In this case sequencing reads MUST be provided in the config.
+    :return: ?
+    """
+    assert config.get("transcriptome") not in [None, ""]
+    # input:
+    #   r1 = trim_reads.output.r1,
+    #   r2 = trim_reads.output.r2 if r2 av
+    # params:
+    #   memory = str(config['memory']) + "G",
+    #   seqType = "fq",
+    #   reads = lambda wildcards, input: "--single " + str(input.r1) if len(input.r2) == 0 else "--left " + str(input.r1) + " --right " + str(input.r2),
+    # shell:
+    #   Trinity --seqType {params.seqType} {params.reads} --CPU {threads} --max_memory {params.memory} --output {output.assembly}
+    return global_output("trinity_out_dir/Trinity.fasta")
 
-if config['R1'] not in [None, ""]:
-    if 'R2' in config and config['R2'] not in [None, ""]:
-        # Reads paired-end
-        rule trim_reads:
-        #   Description: trims the provided raw reads
-            input:
-                r1 = config['R1'],
-                r2 = config['R2'],
-                adapters = config['adapters'],
-            output:
-                r1 = global_output("trimmed_reads/" + config['R1'].split("/")[-1]),
-                r1_unpaired = global_output("trimmed_reads/unpaired." + config['R1'].split("/")[-1]),
-                r2 = global_output("trimmed_reads/" + config['R2'].split("/")[-1]),
-                r2_unpaired = global_output("trimmed_reads/unpaired." + config['R2'].split("/")[-1]),
-            threads: config['threads']
-            shell:
-                """
-                mkdir -p trimmed_reads
-                trimmomatic PE -threads {threads} {input.r1} {input.r2} {output.r1} {output.r1_unpaired} {output.r2} {output.r2_unpaired} ILLUMINACLIP:{input.adapters}:2:40:15 LEADING:15 TRAILING:15 MINLEN:25 SLIDINGWINDOW:4:15
-                """
-    else:
-        # Reads single-end
-        rule trim_reads:
-            # Description: trims the provided raw single-end reads
-            input:
-                r1 = config['R1'],
-                adapters = config['adapters'],
-            output:
-                r1 = global_output("trimmed_reads/" + config['R1'].split("/")[-1]),
-            threads: config['threads']
-            shell:
-                """
-                mkdir -p trimmed_reads
-                trimmomatic SE -threads {threads} {input.r1} {output.r1} ILLUMINACLIP:{input.adapters}:2:40:15 LEADING:15 TRAILING:15 MINLEN:25 SLIDINGWINDOW:4:15
-                """
 
-if config['transcriptome'] in [None, ""]:
-    rule assemble_transcriptome:
-        # Description: Assembles a transcriptome if it is not provided. Uses Trinity 
-        # In this case sequencing reads MUST be provided in the config.
-        input:
-            r1 = rules.trim_reads.output.r1,
-            r2 = lambda wildcards: rules.trim_reads.output.r2 if 'R2' in config and config['R2'] not in [None, ""] else [],
-        output:
-            assembly = global_output("trinity_out_dir/Trinity.fasta")
-        params:
-            memory = str(config['memory']) + "G",
-            seqType = "fq",
-            reads = lambda wildcards, input: "--single " + str(input.r1) if len(input.r2) == 0 else "--left " + str(input.r1) + " --right " + str(input.r2),
-        threads: config['threads']
-        shell:
-            """
-            Trinity --seqType {params.seqType} {params.reads} --CPU {threads} --max_memory {params.memory} --output {output.assembly}
-            """
 
-    
 if 'contaminants' in config and config['contaminants'] not in [None, ""]:
-    rule build_contaminants_database:
-    #   Description: builds blast database for the removal of contaminants   
-    #   todo: make this optional like in the original code
-        input:
-            fasta_db = config['contaminants']
-        output:
-            blast_db = global_output(config['contaminants'].split("/")[-1]+".out")
-        shell:
-            """
-            touch {output.blast_db}
-            makeblastdb -dbtype nucl -in {input.fasta_db} -out {output.blast_db}
-            """
+    def build_contaminants_database():
+        '''
+        rule build_contaminants_database:
+        #   Description: builds blast database for the removal of contaminants
+        #   todo: make this optional like in the original code
+            input:
+                fasta_db = config['contaminants']
+            output:
+                blast_db = global_output(config['contaminants'].split("/")[-1] + ".out")
+            shell:
+                """
+                touch {output.blast_db}
+                makeblastdb -dbtype nucl -in {input.fasta_db} -out {output.blast_db}
+                """
+        '''
+        pass
 
-    rule blast_on_contaminants:
-    #   Description: performs the actual blast of the contigs against the contaminants database
+    def blast_on_contaminants():
+        '''
+        rule blast_on_contaminants:
+        #   Description: performs the actual blast of the contigs against the contaminants database
+            input:
+                blast_db = rules.build_contaminants_database.output.blast_db,
+                contigs = lambda wildcards: config['transcriptome'] if 'transcriptome' in config and config['transcriptome'] not in [None, ""] else rules.assemble_transcriptome.output.assembly,
+            output:
+                blast_result = global_output(config['basename'] + ".blastsnuc.out")
+            params:
+                evalue = config['contamination_evalue']
+            threads: config['threads']
+            shell:
+                """
+                blastn -db {input.blast_db} -query {input.contigs} -out {output.blast_result} -outfmt 6 -evalue {params.evalue} -max_target_seqs 1 -num_threads {threads}
+                """
+        '''
+        pass
+
+    def filter_contaminants():
+        '''
+        rule filter_contaminants:
+        #   Description: performs the actual filtering
+            input:
+                contigs = lambda wildcards: config['transcriptome'] if 'transcriptome' in config and config['transcriptome'] not in [None, ""] else rules.assemble_transcriptome.output.assembly,
+                blast_result = rules.blast_on_contaminants.output.blast_result,
+            output:
+                filtered_contigs = global_output(config['basename'] + ".filtered.fasta")
+            run:
+                from Bio import SeqIO
+                records = []
+                infile = open(input.blast_result, 'r')
+                for line in infile:
+                    line = line.rstrip()
+                    if line[0] != '#':
+                        blast = line.split()
+                        records.append(blast[0])  # we recover the ID of the significant hits
+                infile.close()
+                recordIter = SeqIO.parse(open(input.contigs), "fasta")
+                with open(output.filtered_contigs, "w") as handle:
+                    for rec in recordIter:
+                        if rec.id not in records:
+                            SeqIO.write(rec, handle, "fasta")
+        '''
+        pass
+
+def detect_orfs():
+    '''
+    rule detect_orfs:
+    #   Description: finds complete orfs within the input nucleotide sequences.
+    #   i'm testing this with orfipy instead of orffinder to leverage multithreading
         input:
-            blast_db = rules.build_contaminants_database.output.blast_db,
-            contigs = lambda wildcards: config['transcriptome'] if 'transcriptome' in config and config['transcriptome'] not in [None, ""] else rules.assemble_transcriptome.output.assembly,
+            nucleotide_sequences = rules.filter_contaminants.output.filtered_contigs if config['contaminants'] not in [None, ""] else config['transcriptome'] if 'transcriptome' in config  and config['transcriptome'] != None else rules.assemble_transcriptome.output.assembly
         output:
-            blast_result = global_output(config['basename'] + ".blastsnuc.out")
+            aa_sequences = global_output(config['basename'] + ".faa")
         params:
-            evalue = config['contamination_evalue']
+            minlen = "99" if "minlen" not in config else config['minlen'],
+            maxlen = "30000000" if "maxlen" not in config else config['maxlen']
         threads: config['threads']
         shell:
             """
-            blastn -db {input.blast_db} -query {input.contigs} -out {output.blast_result} -outfmt 6 -evalue {params.evalue} -max_target_seqs 1 -num_threads {threads}
+            orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {output.aa_sequences} --min {params.minlen} --max {params.maxlen} {input.nucleotide_sequences} --outdir .
             """
+    '''
+    pass
 
-    rule filter_contaminants:
-    #   Description: performs the actual filtering
-        input: 
-            contigs = lambda wildcards: config['transcriptome'] if 'transcriptome' in config and config['transcriptome'] not in [None, ""] else rules.assemble_transcriptome.output.assembly,
-            blast_result = rules.blast_on_contaminants.output.blast_result,    
+def drop_X():
+    '''
+    rule drop_X:
+        input:
+            aa_sequences = rules.detect_orfs.output.aa_sequences
         output:
-            filtered_contigs = global_output(config['basename'] + ".filtered.fasta")
+            drop_sequence = global_output(config['basename'] + "_noX.faa")
         run:
             from Bio import SeqIO
-            records = []
-            infile = open(input.blast_result, 'r')
-            for line in infile:
-                line = line.rstrip()
-                if line[0] != '#':
-                    blast = line.split()                                        
-                    records.append(blast[0]) # we recover the ID of the significant hits
-            infile.close()
-            recordIter = SeqIO.parse(open(input.contigs), "fasta")
-            with open(output.filtered_contigs, "w") as handle:
-                for rec in recordIter:
-                    if rec.id not in records:
-                        SeqIO.write(rec, handle, "fasta")
-
-rule detect_orfs:
-#   Description: finds complete orfs within the input nucleotide sequences. 
-#   i'm testing this with orfipy instead of orffinder to leverage multithreading
-    input:
-        nucleotide_sequences = rules.filter_contaminants.output.filtered_contigs if config['contaminants'] not in [None, ""] else config['transcriptome'] if 'transcriptome' in config and config['transcriptome'] is not None else rules.assemble_transcriptome.output.assembly
-    output:
-        aa_sequences = global_output(config['basename'] + ".faa")
-    params:
-        minlen = "99" if "minlen" not in config else config['minlen'],
-        maxlen = "30000000" if "maxlen" not in config else config['maxlen']
-    threads: config['threads']
-    shell:
-        """
-        orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {output.aa_sequences} --min {params.minlen} --max {params.maxlen} {input.nucleotide_sequences} --outdir .
-        """
-
-rule drop_X:
-    input:
-        aa_sequences = rules.detect_orfs.output.aa_sequences
-    output:
-        drop_sequence = global_output(config['basename'] + "_noX.faa")
-    run:
-        from Bio import SeqIO
-        with open(f"{output}", "w") as outfile:
-            for seq in SeqIO.parse(f"{input}", "fasta"):
-                if "X" not in seq.seq:
-                    SeqIO.write(seq, outfile, "fasta")
+            with open(f"{output}", "w") as outfile:
+                for seq in SeqIO.parse(f"{input}", "fasta"):
+                    if "X" not in seq.seq:
+                        SeqIO.write(seq, outfile, "fasta")
+    '''
+    pass
 
 rule cluster_peptides:
 #   Description: runs cd-hit on predicted peptide to remove excess redundancy
@@ -188,7 +187,7 @@ rule trim_peptides:
         aa_sequences = rules.cluster_peptides.output.filtered_aa_sequences
     output:
         trimmed_sequences = global_output(config['basename'] + ".trimmed.faa"),
-    threads: 
+    threads:
         config['threads']
     run:
         from Bio import SeqIO
@@ -215,7 +214,7 @@ checkpoint split_fasta:
 
 
 rule run_signalp:
-    input: 
+    input:
         fasta_file = global_output("")+"split_files/{i}.faa",
     output:
         outfile = global_output("split_files/{i}_summary.signalp5")
@@ -272,7 +271,7 @@ rule extract_secreted_peptides:
 
 rule run_phobius: #todo: remember to inform the user about the installation procedure. I added a dependency in the conda env with a convenient installation script
 #   Description: runs phobius
-    input: 
+    input:
         rules.extract_secreted_peptides.output.secreted_peptides
     output:
         table = global_output(config['basename'] + "_phobius_predictions.tsv")
@@ -320,7 +319,7 @@ rule blast_on_toxins:
         blast_result = global_output(config['basename'] + "_toxin_blast_results.tsv"),
     params:
         evalue = config['toxins_evalue'] if 'toxins_evalue' in config else "1e-10"
-    threads: 
+    threads:
         config['threads']
     run:
         import subprocess
@@ -329,7 +328,7 @@ rule blast_on_toxins:
         command_line = f"{build_header} && diamond blastp -q {input.orf_fasta_clustered_file} --evalue {params.evalue} --max-target-seqs 1 --threads {threads} -d {input.db_file} --outfmt 6 qseqid sseqid pident evalue >> {output.blast_result}"
         print(command_line)
         subprocess.run(command_line, shell=True)
-        
+
 
 rule retrieve_orfs_with_blast_without_signalp:
     input:
@@ -382,7 +381,7 @@ rule run_hmmer:
         domtblout = global_output(config['basename'] + ".domtblout")
     params:
         evalue = config['pfam_evalue'] if 'pfam_evalue' in config else "1e-5"
-    threads: 
+    threads:
         config['threads']
     shell:
         """
@@ -391,7 +390,7 @@ rule run_hmmer:
 
 rule parse_hmmsearch_output:
 #   Description: parses and aggregates the hmmer output, uses the domtblout file
-    input: 
+    input:
         domtblout = rules.run_hmmer.output.domtblout
     output:
         filtered_table = global_output(config['basename'] + ".domtblout.tsv")
@@ -540,7 +539,7 @@ rule blast_on_uniprot:
         blast_result = global_output(config['basename'] + "_uniprot_blast_results.tsv")
     params:
         evalue = config['swissprot_evalue'] if 'swissprot_evalue' in config else "1e-10",
-    threads: 
+    threads:
         config['threads']
     shell:
         """
@@ -617,12 +616,12 @@ rule build_output_table:
                 df['Rating'] = df.apply(lambda row: str(row['Rating'] + '!') if pandas.notna(row['uniprot_sseqid']) and pandas.isna(row['toxinDB_sseqid']) else row['Rating'], axis=1)
         except Exception as e:
             print(f"An error has occurred during sequence rating: {e}")
-            sys.exit()  
+            sys.exit()
         #df = df[df['mature_peptide'].apply(lambda x: len(str(x))) > 3]
         df = df.drop(['cut_site_position','query name'], axis=1)
         df.rename(columns={'k': 'wolfpsort_prediction'}, inplace=True)
         df.drop_duplicates().to_csv(f"{output}", sep='\t', index=False)
 
 rule all:
-    input: 
+    input:
        rules.build_output_table.output
