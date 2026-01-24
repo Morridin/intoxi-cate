@@ -15,8 +15,9 @@ def _get_signalp_splits(wildcards):
     return expand(global_output("") / 'split_files/{i}.fasta',
            i=glob_wildcards(join(checkpoint_output, '{i}.fasta')).i)
 
-def fasta_to_dataframe(fasta_ath):
-    sequences = SeqIO.parse(open(fasta_ath), 'fasta')
+
+def fasta_to_dataframe(fasta_path):
+    sequences = SeqIO.parse(open(fasta_path), 'fasta')
     data = []
     for record in sequences:
         data.append({'ID': record.id, 'Sequence': str(record.seq)})
@@ -27,7 +28,8 @@ def global_output(path: str | Path):
     """
     Constructs the global output path.
     """
-    output_dir = config.get("output_dir", "")
+    path = path.strip()
+    output_dir = config.get("output_dir", "").strip()
     if output_dir:
         return Path(f"{output_dir}/{path}")
     else:

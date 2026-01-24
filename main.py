@@ -2,15 +2,10 @@ import gzip
 import itertools
 import subprocess
 import urllib.request
-from os import makedirs
-from os.path import commonpath
 from pathlib import Path
-from sys import exc_value
 
 import pandas as pd
 from typing import Iterable
-
-from snakemake.io import expand, glob_wildcards, directory
 
 from lib import config, utils
 from lib.utils import global_output
