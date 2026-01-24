@@ -11,11 +11,11 @@ dependencies:
   - snakemake==7.32.4
   - salmon
   - cd-hit
-  - trimmomatic
+  - fastp
   - trinity
   - blast
   - hmmer
-  - python
+  - python>=3.8
   - biopython
   - orfipy
   - phobius

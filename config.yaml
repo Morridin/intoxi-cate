@@ -4,9 +4,9 @@ basename: basename
 memory: 24 # memory in GB, might change later
 threads: 16 # logic threads, not physical cores, for clarity
 R1: test/R1.fastq.gz
-R2: test/R2.fastq.gz
-adapters: test/adapters.fasta
-contaminants: test/contaminants.fasta 
+R2: test/R2.fastq.gz # if paired-end reads
+contaminants: test/contaminants.fasta
+proteome_fasta: #path/to/proteome.faa # if run in proteome mode
 toxin_db: test/toxin_db.fasta
 pfam_db_path: test/Pfam-A.hmm
 swissprot_db_path: test/uniprot.fasta.gz
@@ -15,11 +15,10 @@ contamination_evalue: "1e-5"
 clustering_threshold: "0.99"
 maxlen: 45000
 signalp_dvalue: "0.7"
-signalp_path: software/signalp-5.0b/bin/
 wolfPsort_path: software/WoLFPSort/bin/runWolfPsortSummary
 quant: False
 TPMthreshold: "1000"
-wolfpsort: True
+wolfpsort: False
 swissprot: True
 swissprot_evalue: "1e-10"
 cys_pattern: True
