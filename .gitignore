@@ -3,3 +3,6 @@ test/
 .vscode/
 test_run/
 software/
+.idea/
+dataURLs.json
+installBiocDataPackage.sh
