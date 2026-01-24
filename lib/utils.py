@@ -15,7 +15,7 @@ def _get_signalp_splits(wildcards):
     return expand(global_output("") / 'split_files/{i}.fasta',
            i=glob_wildcards(join(checkpoint_output, '{i}.fasta')).i)
 
-def _fasta_to_dataframe(fasta_ath):
+def fasta_to_dataframe(fasta_ath):
     sequences = SeqIO.parse(open(fasta_ath), 'fasta')
     data = []
     for record in sequences:
