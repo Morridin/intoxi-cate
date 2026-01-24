@@ -1,10 +1,14 @@
+import subprocess
 from os import makedirs
 from pathlib import Path
+from typing import Iterable
 
 from snakemake.io import expand, glob_wildcards, directory
 
 from lib import config
 from lib.utils import global_output
+
+from Bio import SeqIO
 
 
 # configfile: "config.yaml"
@@ -21,7 +25,7 @@ def trim_reads(r1: Path, r2: Path | None, adapters: Path) -> dict[str, Path]:
     assert r1 != "" and r2 != "", "Params r1 and r2 must not be empty!"
 
     base_path = Path("trimmed_reads")
-    makedirs(base_path, exist_ok=True)
+    base_path.mkdir(parents=True, exist_ok=True)
 
     output = {"r1": global_output(base_path / config.get("R1").split("/")[-1])}
     num_threads = config.get("threads")
@@ -45,241 +49,242 @@ def trim_reads(r1: Path, r2: Path | None, adapters: Path) -> dict[str, Path]:
         )
         return output
 
-def assemble_transcriptome():
+
+def assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
     """
     Assembles a transcriptome if it is not provided. Uses Trinity
     In this case sequencing reads MUST be provided in the config.
-    :return: ?
+    :param r1: the r1 return of trim_reads
+    :param r2: the r2 return of trim_reads, if available.
+    :return: The path to the file containing the assembled transcriptome
     """
-    assert config.get("transcriptome") not in [None, ""]
-    # input:
-    #   r1 = trim_reads.output.r1,
-    #   r2 = trim_reads.output.r2 if r2 av
-    # params:
-    #   memory = str(config['memory']) + "G",
-    #   seqType = "fq",
-    #   reads = lambda wildcards, input: "--single " + str(input.r1) if len(input.r2) == 0 else "--left " + str(input.r1) + " --right " + str(input.r2),
-    # shell:
-    #   Trinity --seqType {params.seqType} {params.reads} --CPU {threads} --max_memory {params.memory} --output {output.assembly}
-    return global_output("trinity_out_dir/Trinity.fasta")
+    if r2 is None:
+        reads = f"--single {r1}"
+    else:
+        reads = f"--left {r1} --right {r2}"
 
+    memory = f"{config.get("memory")}G"
+    seq_type = "fq"
+    threads: int = config.get("threads")
+
+    assembly = global_output("trinity_out_dir/Trinity.fasta")
+
+    subprocess.run(
+        f"Trinity --seqType {seq_type} {reads} --CPU {threads} --max_memory {memory} --output {assembly}"
+    )
+
+    return assembly
 
 
 if 'contaminants' in config and config['contaminants'] not in [None, ""]:
-    def build_contaminants_database():
-        '''
-        rule build_contaminants_database:
-        #   Description: builds blast database for the removal of contaminants
-        #   todo: make this optional like in the original code
-            input:
-                fasta_db = config['contaminants']
-            output:
-                blast_db = global_output(config['contaminants'].split("/")[-1] + ".out")
-            shell:
-                """
-                touch {output.blast_db}
-                makeblastdb -dbtype nucl -in {input.fasta_db} -out {output.blast_db}
-                """
-        '''
-        pass
+    def build_contaminants_database(fasta_db: str = config.get("contaminants")) -> Path:
+        """
+        builds blast database for the removal of contaminants
+        Todo: make this optional like in the original code
+        :param fasta_db: A string representing the path to the fasta database.
+        :return The path to the blast database file.
+        """
+        blast_db = global_output(fasta_db.split("/")[-1] + ".out")
 
-    def blast_on_contaminants():
-        '''
-        rule blast_on_contaminants:
-        #   Description: performs the actual blast of the contigs against the contaminants database
-            input:
-                blast_db = rules.build_contaminants_database.output.blast_db,
-                contigs = lambda wildcards: config['transcriptome'] if 'transcriptome' in config and config['transcriptome'] not in [None, ""] else rules.assemble_transcriptome.output.assembly,
-            output:
-                blast_result = global_output(config['basename'] + ".blastsnuc.out")
-            params:
-                evalue = config['contamination_evalue']
-            threads: config['threads']
-            shell:
-                """
-                blastn -db {input.blast_db} -query {input.contigs} -out {output.blast_result} -outfmt 6 -evalue {params.evalue} -max_target_seqs 1 -num_threads {threads}
-                """
-        '''
-        pass
+        blast_db.touch()
+        subprocess.run(
+            f"makeblastdb -dbtype nucl -in {fasta_db} -out {blast_db}"
+        )
 
-    def filter_contaminants():
-        '''
-        rule filter_contaminants:
-        #   Description: performs the actual filtering
-            input:
-                contigs = lambda wildcards: config['transcriptome'] if 'transcriptome' in config and config['transcriptome'] not in [None, ""] else rules.assemble_transcriptome.output.assembly,
-                blast_result = rules.blast_on_contaminants.output.blast_result,
-            output:
-                filtered_contigs = global_output(config['basename'] + ".filtered.fasta")
-            run:
-                from Bio import SeqIO
-                records = []
-                infile = open(input.blast_result, 'r')
-                for line in infile:
-                    line = line.rstrip()
-                    if line[0] != '#':
-                        blast = line.split()
-                        records.append(blast[0])  # we recover the ID of the significant hits
-                infile.close()
-                recordIter = SeqIO.parse(open(input.contigs), "fasta")
-                with open(output.filtered_contigs, "w") as handle:
-                    for rec in recordIter:
-                        if rec.id not in records:
-                            SeqIO.write(rec, handle, "fasta")
-        '''
-        pass
+        return blast_db
 
-def detect_orfs():
-    '''
-    rule detect_orfs:
-    #   Description: finds complete orfs within the input nucleotide sequences.
-    #   i'm testing this with orfipy instead of orffinder to leverage multithreading
-        input:
-            nucleotide_sequences = rules.filter_contaminants.output.filtered_contigs if config['contaminants'] not in [None, ""] else config['transcriptome'] if 'transcriptome' in config  and config['transcriptome'] != None else rules.assemble_transcriptome.output.assembly
-        output:
-            aa_sequences = global_output(config['basename'] + ".faa")
-        params:
-            minlen = "99" if "minlen" not in config else config['minlen'],
-            maxlen = "30000000" if "maxlen" not in config else config['maxlen']
-        threads: config['threads']
-        shell:
-            """
-            orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {output.aa_sequences} --min {params.minlen} --max {params.maxlen} {input.nucleotide_sequences} --outdir .
-            """
-    '''
-    pass
 
-def drop_X():
-    '''
-    rule drop_X:
-        input:
-            aa_sequences = rules.detect_orfs.output.aa_sequences
-        output:
-            drop_sequence = global_output(config['basename'] + "_noX.faa")
-        run:
-            from Bio import SeqIO
-            with open(f"{output}", "w") as outfile:
-                for seq in SeqIO.parse(f"{input}", "fasta"):
-                    if "X" not in seq.seq:
-                        SeqIO.write(seq, outfile, "fasta")
-    '''
-    pass
+    def blast_on_contaminants(blast_db: Path, contigs: Path) -> Path:
+        """
+        performs the actual blast of the contigs against the contaminants database
+        :param blast_db: The path to the blast database file - the return value from build_contaminants_database
+        :param contigs: The path leading to a fasta file holding transcriptome data.
+        :return: The path to the result of running blast.
+        """
+        blast_result = global_output(config.get("basename") + ".blastsnuc.out")
 
-def cluster_peptides():
-    '''
-    rule cluster_peptides:
-    #   Description: runs cd-hit on predicted peptide to remove excess redundancy
-        input:
-            aa_sequences = rules.drop_X.output.drop_sequence
-        output:
-            filtered_aa_sequences = global_output(config['basename'] + ".clustered.faa")
-        params:
-            threshold = config['clustering_threshold'], #todo : we might want to use separate thresholds if we're going to run cd-hit on transcripts and peptides
-            memory = str(int(config['memory'])*1000),
-            basename = config['basename'] + ".clustered"
-        threads: config['threads']
-        shell:
-            """
-            cd-hit -i {input.aa_sequences} -o {output.filtered_aa_sequences} -c {params.threshold} -M {params.memory} -T {threads} -d 40
-            """
-    '''
-    pass
+        e_value: float = config.get("contamination_evalue")
+        threads: int = config.get("threads")
 
-def trim_peptides():
-    '''
-    rule trim_peptides:
-    #   Description: this rule trims all peptides to only the first 50 aminoacids, as they are the only useful part for signalp. This step improves load time.
-        input:
-            aa_sequences = rules.cluster_peptides.output.filtered_aa_sequences
-        output:
-            trimmed_sequences = global_output(config['basename'] + ".trimmed.faa"),
-        threads:
-            config['threads']
-        run:
-            from Bio import SeqIO
-            import subprocess
-            with open(output.trimmed_sequences, "w") as outfile:
-                for seq in SeqIO.parse(input.aa_sequences, "fasta"):
-                    outfile.write(f">{seq.id}\n{seq.seq[:50]}\n")
-    '''
-    pass
+        subprocess.run(
+            f"blastn -db {blast_db} -query {contigs} -out {blast_result} -outfmt 6 -evalue {e_value} -max_target_seqs 1 -num_threads {threads}"
+        )
 
-def checkpoint__split_fasta():
-    '''
-    checkpoint split_fasta:
-        input:
-            fasta_file = rules.trim_peptides.output.trimmed_sequences
-        output:
-            split_dir = directory(global_output("split_files"))
-        params:
-            chunk_size = 5000
-        threads:
-            config['threads']
-        shell:
-            """
-            mkdir -p {output.split_dir}
-            seqkit split2 -s {params.chunk_size} -O {output.split_dir} --by-size-prefix ""  -j {threads} {input.fasta_file}
-            """
-    '''
-    pass
+        return blast_result
 
-def run_signalp():
-    '''
-    rule run_signalp:
-        input:
-            fasta_file = global_output("")+"split_files/{i}.faa",
-        output:
-            outfile = global_output("split_files/{i}_summary.signalp5")
-        params:
-            prefix = global_output("split_files/{i}"),
-            signalp_path = config['signalp_path']
-        shell:
-            """
-            signalp -batch 5000 -fasta {input.fasta_file} -org euk -format short -verbose -prefix {params.prefix}
-            """
-    '''
-    pass
 
-def filter_signalp_outputs():
-    '''
-    rule filter_signalp_outputs:
-    #   Description: this rule filters the output of the multiple signalp runs and extracts only those with a probability of signal peptide greater than a threshold. Only one file should be produced from the multiple signalp files. Two outputs are expected: a filtered (or not?) table with the signalp results and a filtered fasta of only those peptides with a signal
-        input:
-            files = aggregate_splits
-        output:
-            global_output(config["basename"] + "_filtered_sigp.tsv")
-        params:
-            threshold = config['signalp_dvalue'] if 'signalp_dvalue' in config else "0.7"
-        shell:
-            """
-            awk -v b={params.threshold} -F'\t' '!/^#/ && !/\?/  && $3 > b' {input.files} > {output}
-            """
-    '''
+    def filter_contaminants(contigs: Path, blast_result: Path) -> Path:
+        """
+        performs the actual filtering
+        :param contigs: The path leading to a fasta file holding transcriptome data.
+        :param blast_result: The return value from blast_on_contaminants - a path leading to the blastn results file.
+        :return: The path to the file containing the blastn result filtered from the contaminants.
+        """
+        filtered_contigs = global_output(config.get("basename") + ".filtered.fasta")
 
-def extract_secreted_peptides():
-    '''
-    rule extract_secreted_peptides:
-        input:
-            signalp_result = rules.filter_signalp_outputs.output,
-            fasta_file = rules.cluster_peptides.output.filtered_aa_sequences
-        output:
-            secreted_peptides = global_output(config['basename'] + "_secreted_peptides.fasta"),
-            non_secreted_peptides = global_output(config['basename'] + "_non_secreted_peptides.fasta")
-        run:
-            from Bio import SeqIO
-            with open(str(input.signalp_result)) as infile:
-                records = []
-                for line in infile:
-                    records.append(line.rstrip().split("\t")[0])
-            with open(output.non_secreted_peptides, "w") as n_outfile:
-                with open(output.secreted_peptides, "w") as outfile:
-                    for seq in SeqIO.parse(input.fasta_file, "fasta"):
-                        if seq.id in records:
-                            SeqIO.write(seq, outfile, "fasta")
-                        else:
-                            SeqIO.write(seq, n_outfile, "fasta")
-    '''
-    pass
+        records = []
+        with open(blast_result) as infile:
+            for line in infile:
+                line = line.rstrip()
+                if line[0] != "#":
+                    records.append(line.split()[0])  # we recover the ID of the significan hits
+
+        with open(filtered_contigs, "w") as outfile:
+            for rec in SeqIO.parse(contigs, "fasta"):
+                if rec.id not in records:
+                    SeqIO.write(rec, outfile, "fasta")
+
+        return filtered_contigs
+
+
+def detect_orfs(nucleotide_sequences: Path, minlen=99, maxlen=30000000) -> Path:
+    """
+    finds complete orfs within the input nucleotide sequences.
+    DeTox were testing this with orfipy instead of orffinder to leverage multithreading
+    :param nucleotide_sequences: The path leading to a fasta file holding transcriptome data/blastn results.
+    :param minlen: minimum length an orf needs to have to be considered
+    :param maxlen: maximum length an orf needs to have to be considered
+    :return: The path leading to the faa file holding the nucleotide sequences that are considered to be complete orfs.
+    """
+    aa_sequences = global_output(config.get("basename") + ".faa")
+
+    threads = config.get("threads")
+
+    subprocess.run(
+        f"orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {aa_sequences} --min {minlen} --max {maxlen} {nucleotide_sequences} --outdir ."
+    )
+
+    return nucleotide_sequences
+
+
+def drop_X(aa_sequences: Path) -> Path:
+    """
+    removes all entries from a nucleotide sequence file that contain at least one `X`
+    :param aa_sequences: The path to an faa file holding nucleotide sequences.
+    :return: The path to the faa file that holds the filtered nucleotide sequences.
+    """
+    drop_sequence = global_output(config.get('basename') + "_noX.faa")
+
+    with open(drop_sequence, "w") as outfile:
+        for seq in SeqIO.parse(aa_sequences, "fasta"):
+            if "X" not in seq.seq:
+                SeqIO.write(seq, outfile, "fasta")
+
+    return drop_sequence
+
+
+def cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memory: int) -> Path:
+    """
+    runs cd-hit on predicted peptide to remove excess redundancy
+    :param aa_sequences: The path to an faa file holding nucleotide sequences.
+    :param clustering_threshold: The sequence identity threshold that guides cluster generation.
+        Sequences that are sufficiently similar to pass this threshold are clustered together.
+    :param max_memory: The maximum amount of RAM that this function may use, in Gigabyte (GB)
+    :return: The path to the faa file that holds the clustered nucleotide sequences/the sequences representing the clusters.
+    """
+    filtered_aa_sequences = global_output(config.get("basename") + ".clustered.fasta")
+
+    threads = config.get("threads")
+
+    subprocess.run(
+        f"cd-hit -i {aa_sequences} -o {filtered_aa_sequences} -c {clustering_threshold} -M {max_memory} -T {threads} -d 40"
+    )
+
+    return filtered_aa_sequences
+
+
+def trim_peptides(aa_sequences: Path) -> Path:
+    """
+    trims all peptides to only the first 50 aminoacids, as they are the only useful part for signalp. This step improves load time.
+    :param aa_sequences: The path to an faa file holding clustered nucleotide sequences (see cluster_peptides).
+    :return: The path to an faa file holding the same nucleotide sequences, but cut off after the fiftieth aminoacid.
+    """
+    trimmed_sequences = global_output(config.get("basename") + ".trimmed.faa")
+
+    with open(trimmed_sequences, "w") as outfile:
+        for seq in SeqIO.parse(aa_sequences, "fasta"):
+            outfile.write(f">{seq.id}\n{seq.seq[:50]}\n")
+
+    return trimmed_sequences
+
+
+def checkpoint__split_fasta(fasta_file: Path, chunk_size: int = 5000) -> Path:
+    """
+    ?
+    :param chunk_size:
+    :param fasta_file:
+    :return:
+    """
+    split_dir = global_output("split_files")
+
+    split_dir.mkdir(parents=True, exist_ok=True)
+
+    threads = config.get("threads")
+
+    subprocess.run(
+        f"seqkit split2 -s {chunk_size} -O {split_dir} --by-size-prefix \"\"  -j {threads} {fasta_file}"
+    )
+
+    return split_dir
+
+
+def run_signalp(fasta_file: Path, prefix: Path, signalp_path: Path) -> Path:
+    """
+    ?
+    :param fasta_file: Default: global_output("")+"split_files/{i}.faa"
+    :param prefix: Default: global_output("split_files/{i}"),
+    :param signalp_path: Default: config.get("signalp_path")
+    :return: ?
+    """
+    if not (signalp_path / "signalp").exists():
+        subprocess.run(
+            f"signalp -batch 5000 -fasta {fasta_file} -org euk -format short -verbose -prefix {prefix}"
+        )
+    else:
+        subprocess.run(
+            f"./{signalp_path}signalp -batch 5000 -fasta {fasta_file} -org euk -format short -verbose -prefix {prefix}"
+        )
+    return fasta_file.with_name(fasta_file.stem + "_summary.signalp5")
+
+
+def filter_signalp_outputs(files: Iterable[Path], threshold: float = 0.7) -> list[Path]:
+    """
+    filters the output of the multiple signalp runs and extracts only those with a probability of signal peptide greater than a threshold.
+    Only one file should be produced from the multiple signalp files.
+    Two outputs are expected: a filtered (or not?) table with the signalp results and a filtered fasta of only those peptides with a signal
+    :return:
+    """
+    out_file = global_output(config.get("basename") + "_filtered_sigp.tsv")
+
+    subprocess.run(f"awk -v b={threshold} -F'\t' '!/^#/ && !/\?/  && $3 > b' {" ".join({str(file) for file in files})} > {out_file}")
+
+    return out_file
+
+
+def extract_secreted_peptides(signalp_result: Path, fasta_file: Path) -> tuple[Path, Path]:
+    """
+    ?
+    :param signalp_result: The output of running signalp and filtering its output
+    :param fasta_file: The path to a file containing amino acid sequences as per the filtered output of cluster_peptides.
+    :return:
+    """
+    secreted_peptides = global_output(config.get("basename") + "_secreted_peptides.fasta")
+    non_secreted_peptides = global_output(config.get("basename") + "_non_secreted_peptides.fasta")
+
+    with open(str(signalp_result)) as infile:
+        records = []
+        for line in infile:
+            records.append(line.rstrip().split("\t")[0])
+    with open(non_secreted_peptides, "w") as n_outfile:
+        with open(secreted_peptides, "w") as outfile:
+            for seq in SeqIO.parse(fasta_file, "fasta"):
+                if seq.id in records:
+                    SeqIO.write(seq, outfile, "fasta")
+                else:
+                    SeqIO.write(seq, n_outfile, "fasta")
+
+    return secreted_peptides, non_secreted_peptides
+
 
 def run_phobius():
     '''
@@ -295,6 +300,7 @@ def run_phobius():
             """
     '''
     pass
+
 
 def extract_non_TM_peptides():
     '''
@@ -318,6 +324,7 @@ def extract_non_TM_peptides():
     '''
     pass
 
+
 def build_toxin_blast_db():
     '''
     rule build_toxin_blast_db: #todo: do we switch to diamond for max speed?
@@ -332,6 +339,7 @@ def build_toxin_blast_db():
             """
     '''
     pass
+
 
 def blast_on_toxins():
     '''
@@ -356,6 +364,7 @@ def blast_on_toxins():
     '''
     pass
 
+
 def retrieve_orfs_with_blast_without_signalp():
     '''
     rule retrieve_orfs_with_blast_without_signalp:
@@ -376,6 +385,7 @@ def retrieve_orfs_with_blast_without_signalp():
     '''
     pass
 
+
 def retrieve_candidate_toxins():
     '''
     rule retrieve_candidate_toxins:
@@ -392,6 +402,7 @@ def retrieve_candidate_toxins():
     '''
     pass
 
+
 def download_pfam():
     '''
     rule download_pfam:
@@ -406,6 +417,7 @@ def download_pfam():
             """
     '''
     pass
+
 
 def run_hmmer():
     '''
@@ -428,6 +440,7 @@ def run_hmmer():
     '''
     pass
 
+
 def parse_hmmsearch_output():
     '''
     rule parse_hmmsearch_output:
@@ -444,6 +457,7 @@ def parse_hmmsearch_output():
             aggregated_domains.to_csv(f"{output.filtered_table}", sep="\t", index=False)
     '''
     pass
+
 
 def run_wolfpsort():
     '''
@@ -462,6 +476,7 @@ def run_wolfpsort():
             """
     '''
     pass
+
 
 def detect_repeated_aa():
     '''
@@ -552,6 +567,7 @@ def run_salmon():
             '''
             pass
 
+
 def download_uniprot():
     '''
     rule download_uniprot:
@@ -565,6 +581,7 @@ def download_uniprot():
             """
     '''
     pass
+
 
 def make_uniprot_blast_database():
     '''
@@ -580,6 +597,7 @@ def make_uniprot_blast_database():
             """
     '''
     pass
+
 
 def blast_on_uniprot():
     '''
@@ -602,11 +620,11 @@ def blast_on_uniprot():
     '''
     pass
 
+
 # TODO: follow this comment for the rule that will wraps everything up and create the final table. -> Also, in my opinion these peptides should be marked with a warning flag in the output, specifying which issue affects them (e.g. “this peptide lacks a signal peptide”, “this peptide contains a transmembrane domain”, etc.)
 
 
-
-#todo: try to run signalp during the split rule to avoid problems. issue: if the process is interrupted abnormally during the run the rule is almost certain to misbehave and rerun the whole thing
+# todo: try to run signalp during the split rule to avoid problems. issue: if the process is interrupted abnormally during the run the rule is almost certain to misbehave and rerun the whole thing
 
 # this is the list with all the expected output to be put in the final table, will be filled depending on the configuration file.
 '''
@@ -618,6 +636,7 @@ outputs = [
     rules.detect_repeated_aa.output.repeated_aa,
 ]
 '''
+
 
 def build_output_table():
     '''
@@ -680,6 +699,7 @@ def build_output_table():
             df.drop_duplicates().to_csv(f"{output}", sep='\t', index=False)
     '''
     pass
+
 
 def all():
     '''
