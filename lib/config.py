@@ -2,7 +2,7 @@
 This file contains the logic required for configuration reading and controlling.
 """
 from pathlib import Path
-from typing import TypeVar
+from typing import TypeVar, Optional
 
 import yaml
 
@@ -27,10 +27,11 @@ class Config:
         with open(config_path, "r") as f:
             self.config = dict(yaml.safe_load(f))
 
-    def get(self, key: str, default: T = None) -> T | None:
+    def get(self, key: str, default: Optional[T]) -> Optional[T]:
         """
         This function searches the config file given by config_path and returns the value associated with key in this file.
         If key is not found in config_path, or is an empty string, None is returned.
+        Exception to this is an empty string as default value which is returned if else None had been returned.
 
         :param default: A value to return if `key` is not found in config_path
         :param key: The configuration key to look for.
@@ -38,10 +39,23 @@ class Config:
         """
         output = self.config.get(key, default)
 
-        if output == "":
+        if output == "" != default:
             return None
 
         return output
 
+    def get_path(self, key: str) -> Optional[Path]:
+        """
+        This method does a config lookup as `get` does, but instead of returning a found value directly,
+        this method attempts to transform said value into a Path object.
+        If no value can be found or the transformation to a Path object fails, None is returned,
+        else a Path object pointing to whatever value was found, interpreted as file system path.
+        :param key: The configuration key to look for.
+        :return: A path to a transformable value found in the config file, if any, else None.
+        """
+        output = self.config.get(key)
+        if type(output) != str:
+            return None
+        return Path(output.strip())
 
 config = Config()
