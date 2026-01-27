@@ -30,14 +30,18 @@ class Config:
     def get(self, key: str, default: T = None) -> T | None:
         """
         This function searches the config file given by config_path and returns the value associated with key in this file.
-        If key is not found in config_path, or is empty, None is returned.
-        If key exists multiple times in config_path, the behaviour is undefined.
+        If key is not found in config_path, or is an empty string, None is returned.
 
         :param default: A value to return if `key` is not found in config_path
         :param key: The configuration key to look for.
         :return: The value associated with `key` in the file denoted by config_path.
         """
-        return self.config.get(key, default)
+        output = self.config.get(key, default)
+
+        if output == "":
+            return None
+
+        return output
 
 
 config = Config()
