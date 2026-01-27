@@ -7,8 +7,9 @@ from pathlib import Path
 import pandas as pd
 from typing import Iterable
 
-from lib import config, utils
+from lib.config import config
 from lib.utils import global_output
+from lib import utils
 
 from Bio import SeqIO
 
@@ -705,4 +706,8 @@ def build_output_table(wolfpsort: Path, uniprot_blast: Path, tpm_threshold: int 
 
 
 if __name__ == "__main__":
+    has_reads = config.get("R1") not in [None, ""]
+    has_transcripts = config.get("transcriptome") not in [None, ""]
+    has_proteome = config.get("proteome_fasta") not in [None, ""]
+    quant = config.get("quant", True)
     build_output_table();
