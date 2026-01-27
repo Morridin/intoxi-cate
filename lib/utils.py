@@ -3,6 +3,7 @@ Here be all the miscellaneous utilities that fit nowhere else.
 """
 from os.path import join
 from pathlib import Path
+from typing import Generator
 
 import pandas as pd
 from Bio import SeqIO
@@ -13,27 +14,38 @@ from lib import snakemake_checkpoints, config
 def _get_signalp_splits(wildcards):
     checkpoint_output = snakemake_checkpoints.split_fasta.get(**wildcards).output[0]
     return expand(global_output("") / 'split_files/{i}.fasta',
-           i=glob_wildcards(join(checkpoint_output, '{i}.fasta')).i)
+                  i=glob_wildcards(join(checkpoint_output, '{i}.fasta')).i)
+
+
+def _generate_fasta_records(fasta_path: Path) -> Generator[dict[str, str]]:
+    """
+    Yields records from a fasta file.
+    :param fasta_path: The path to the fasta file.
+    :return: A generator yielding dictionaries consisting of ID and Sequence key.
+    """
+    for record in SeqIO.parse(fasta_path, 'fasta'):
+        yield {'ID': record.id, 'Sequence': str(record.seq)}
 
 
 def fasta_to_dataframe(fasta_path):
-    sequences = SeqIO.parse(open(fasta_path), 'fasta')
-    data = []
-    for record in sequences:
-        data.append({'ID': record.id, 'Sequence': str(record.seq)})
-    return pd.DataFrame(data)
+    """
+    Transforms a fasta file to a pandas dataframe..
+    :param fasta_path: The path to the fasta file.
+    :return: A pandas dataframe containing the sequence data from the fasta file.
+    """
+    return pd.DataFrame(_generate_fasta_records(fasta_path))
 
 
 def global_output(path: str | Path):
     """
     Constructs the global output path.
     """
-    path = path.strip()
+    if type(path) == str:
+        path = path.strip()
     output_dir = config.get("output_dir", "").strip()
-    if output_dir:
-        return Path(f"{output_dir}/{path}")
-    else:
-        return Path(path)
+
+    return Path(output_dir) / path
+
 
 def expand(path: Path | str, **kwargs) -> Path | tuple[Path, ...]:
     """
@@ -46,6 +58,7 @@ def expand(path: Path | str, **kwargs) -> Path | tuple[Path, ...]:
     _ = path, kwargs
     raise NotImplementedError()
 
+
 def glob_wildcards(path: str) -> str:
     """
     Temp function stub to reduce error markings
@@ -56,6 +69,7 @@ def glob_wildcards(path: str) -> str:
     _ = path
     raise NotImplementedError()
 
+
 def aggregate_splits(wildcards):
     """
     ?
@@ -63,8 +77,9 @@ def aggregate_splits(wildcards):
     :return:
     """
     checkpoint_output = snakemake_checkpoints.split_fasta.get(**wildcards).output[0]
-    return expand(global_output("")+"split_files/{i}_summary.signalp5",
-        i=glob_wildcards(join(checkpoint_output, "{i}.faa")).i)
+    return expand(global_output("") + "split_files/{i}_summary.signalp5",
+                  i=glob_wildcards(join(checkpoint_output, "{i}.faa")).i)
+
 
 def get_cys_pattern(seq):
     """
