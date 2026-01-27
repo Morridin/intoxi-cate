@@ -14,8 +14,6 @@ from lib import utils
 from Bio import SeqIO
 
 
-# configfile: "config.yaml"
-
 def trim_reads(r1: Path, r2: Path | None, adapters: Path) -> dict[str, Path]:
     """
     This function trims the raw reads provided in paths r1 and r2 using what is provided in adapters.
@@ -27,30 +25,29 @@ def trim_reads(r1: Path, r2: Path | None, adapters: Path) -> dict[str, Path]:
     """
     assert r1 != "" and r2 != "", "Params r1 and r2 must not be empty!"
 
-    base_path = Path("trimmed_reads")
+    base_path = global_output("trimmed_reads")
     base_path.mkdir(parents=True, exist_ok=True)
 
-    output = {"r1": global_output(base_path / config.get("R1").split("/")[-1])}
-    num_threads = config.get("threads")
+    output = {"r1": global_output(base_path / r1.name)}
+    threads = config.get("threads")
 
-    if r2 is None:
-        subprocess.run(
-            f"trimmomatic SE -threads {num_threads} {r1} {output['r1']} "
-            f"ILLUMINACLIP:{input.adapters}:2:40:15 LEADING:15 TRAILING:15 MINLEN:25 SLIDINGWINDOW:4:15".split(" ")
-        )
-        return output
-    else:
+    if r2 is not None:
         output |= {
-            "r2": global_output(base_path / config.get("R2").split("/")[-1]),
-            "r1_unpaired": global_output(base_path / ("unpaired." + config.get("R1").split("/")[-1])),
-            "r2_unpaired": global_output(base_path / ("unpaired." + config.get("R2").split("/")[-1]))
+            "r2": base_path / r2.name,
+            "r1_unpaired": base_path / f"unpaired.{r1.name}",
+            "r2_unpaired": base_path / f"unpaired.{r2.name}"
         }
-        subprocess.run(
-            f"trimmomatic PE -threads {num_threads} {r1} {r2} "
-            f"{output['r1']} {output['r1_unpaired']} {output['r2']} {output['r2_unpaired']} "
-            f"ILLUMINACLIP:{adapters}:2:40:15 LEADING:15 TRAILING:15 MINLEN:25 SLIDINGWINDOW:4:15".split(" ")
-        )
-        return output
+        command_extension = f" -I {r2} -O {output["r2"]} --unpaired1 {output["r1_unpaired"]} --unpaired2 {output["r2_unpaired"]} --detect_adapter_for_pe "
+    else:
+        command_extension = " "
+
+    subprocess.run(
+        f"fastp -i {r1} -o {output["r1"]}{command_extension}"
+        f"-w {threads} --cut_front --cut_front_window_size 1 --cut_tail --cut_tail_window_size 1 "
+        f"--cut_right --cut_right_window_size 4 --cut_mean_quality 15 --length_required 25"
+    )
+
+    return output
 
 
 def assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
@@ -706,8 +703,23 @@ def build_output_table(wolfpsort: Path, uniprot_blast: Path, tpm_threshold: int 
 
 
 if __name__ == "__main__":
-    has_reads = config.get("R1") not in [None, ""]
-    has_transcripts = config.get("transcriptome") not in [None, ""]
-    has_proteome = config.get("proteome_fasta") not in [None, ""]
+    # --- Validate Config ----------------------------------------------------------
+    has_reads = config.get("R1") is not None
+    has_transcripts = config.get("transcriptome") is not None
+    has_proteome = config.get("proteome_fasta") is not None
     quant = config.get("quant", True)
+
+    # --- 1. Proteome OR 2. Reads (+/- transcriptome)  -----------------------------
+    if has_proteome and (has_reads or has_transcripts):
+        raise ValueError("Choose between providing only a proteome or a transcriptome/read")
+    if not (has_reads or has_transcripts or has_proteome):
+        raise ValueError(
+            "No entry point provided in config.yaml. Please provide either a proteome, a transcriptome or reads.")
+
+    if has_proteome:
+        if quant:
+            raise ValueError("quant must be false in config.yaml if you provide proteome_fasta.")
+        if config.get("R1") is not None or config.get("R2") is not None:
+            raise ValueError("You must not fill in R1/R2 in config.yaml when proteome_fasta is used.")
+
     build_output_table();
