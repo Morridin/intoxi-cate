@@ -1,6 +1,8 @@
 """
 Here be all the miscellaneous utilities that fit nowhere else.
 """
+import os
+from functools import cache
 from os.path import join
 from pathlib import Path
 from typing import Generator
@@ -103,3 +105,16 @@ def get_cys_pattern(seq):
     if pattern == "":
         pattern = None
     return pattern
+
+@cache
+def get_threads() -> int:
+    """
+    Retrieves the number of threads from config file, or if not available, tries to get the number by other means.
+    :return: The number of threads available to the program.
+    """
+
+    threads = config.get("threads")
+    if threads is None:
+        threads = len(os.sched_getaffinity(0))
+
+    return threads

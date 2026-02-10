@@ -14,66 +14,7 @@ from lib import utils
 from Bio import SeqIO
 
 
-def trim_reads(r1: Path, r2: Path | None, adapters: Path) -> dict[str, Path]:
-    """
-    This function trims the raw reads provided in paths r1 and r2 using what is provided in adapters.
-    :param r1: The path to the forward paired-end or single-end reads file in FASTQ format.
-    :param r2: The path to the reverse paired-end reads file in FASTQ format.
-    :param adapters: The path to the adapters file in FASTA format.
-    :return: The paths to the forward and reverse paired-end reads in FASTA format, as well as their unpaired
-    counterparts, all sorted in a dict with the following keys: r1, (r1_unpaired, r2, r2_unpaired (only if r2 is not None))
-    """
-    assert r1 != "" and r2 != "", "Params r1 and r2 must not be empty!"
 
-    base_path = global_output("trimmed_reads")
-    base_path.mkdir(parents=True, exist_ok=True)
-
-    output = {"r1": global_output(base_path / r1.name)}
-    threads = config.get("threads")
-
-    if r2 is not None:
-        output |= {
-            "r2": base_path / r2.name,
-            "r1_unpaired": base_path / f"unpaired.{r1.name}",
-            "r2_unpaired": base_path / f"unpaired.{r2.name}"
-        }
-        command_extension = f" -I {r2} -O {output["r2"]} --unpaired1 {output["r1_unpaired"]} --unpaired2 {output["r2_unpaired"]} --detect_adapter_for_pe "
-    else:
-        command_extension = " "
-
-    subprocess.run(
-        f"fastp -i {r1} -o {output["r1"]}{command_extension}"
-        f"-w {threads} --cut_front --cut_front_window_size 1 --cut_tail --cut_tail_window_size 1 "
-        f"--cut_right --cut_right_window_size 4 --cut_mean_quality 15 --length_required 25"
-    )
-
-    return output
-
-
-def assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
-    """
-    Assembles a transcriptome if it is not provided. Uses Trinity
-    In this case sequencing reads MUST be provided in the config.
-    :param r1: the r1 return of trim_reads
-    :param r2: the r2 return of trim_reads, if available.
-    :return: The path to the file containing the assembled transcriptome
-    """
-    if r2 is None:
-        reads = f"--single {r1}"
-    else:
-        reads = f"--left {r1} --right {r2}"
-
-    memory = f"{config.get("memory")}G"
-    seq_type = "fq"
-    threads: int = config.get("threads")
-
-    assembly = global_output("trinity_out_dir/Trinity.fasta")
-
-    subprocess.run(
-        f"Trinity --seqType {seq_type} {reads} --CPU {threads} --max_memory {memory} --output {assembly}"
-    )
-
-    return assembly
 
 
 if 'contaminants' in config and config['contaminants'] not in [None, ""]:
@@ -516,35 +457,6 @@ def _find_repetition(size: int, seq: pd.Series, threshold: int) -> list:
 
 
 ### optional rules
-
-
-def run_salmon(transcriptome: Path, r1: Path, r2: Path | None = None):
-    """
-    ?
-    :return:
-    """
-
-    quant_dir = global_output(config.get("basename") + "_quant")
-    quant_dir.mkdir(parents=True, exist_ok=True)
-    index = global_output("salmon.idx")
-    index.mkdir(parents=True, exist_ok=True)
-    quantification = global_output(config.get('basename') + "_quant/quant.sf")
-
-    threads = config.get("threads")
-
-    subprocess.run(
-        f"salmon index -t {transcriptome} -i {index} -p {threads}"
-    )
-    if r2 is not None:
-        command = f"salmon quant -i {index} -l A -1 {r1} -2 {r2} --validateMappings -o {quant_dir}"
-    else:
-        command = f"salmon quant -i {index} -l A -r {r1} --validateMappings -o {quant_dir}"
-
-    subprocess.run(command)
-
-    return quantification
-
-
 def download_uniprot():
     db_dir = global_output("databases/uniprot")
     db_dir.mkdir(parents=True, exist_ok=True)
@@ -721,5 +633,7 @@ if __name__ == "__main__":
             raise ValueError("quant must be false in config.yaml if you provide proteome_fasta.")
         if config.get("R1") is not None or config.get("R2") is not None:
             raise ValueError("You must not fill in R1/R2 in config.yaml when proteome_fasta is used.")
+
+    threads = config.get("threads")
 
     build_output_table();
