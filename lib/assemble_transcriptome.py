@@ -76,7 +76,7 @@ def _assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
     return assembly
 
 @cache
-def assemble_transcriptome(r1: Path, r2: Path | None, *, threads: int = None) -> Path:
+def assemble_transcriptome() -> Path:
     """
     This function assembles the transcriptome if it is not provided via config.
     Else, it will instead return the file path from the config: If available, the value at "transcriptome" is returned, else "proteome_fasta".
@@ -86,14 +86,13 @@ def assemble_transcriptome(r1: Path, r2: Path | None, *, threads: int = None) ->
     If that is not possible, the program tries to estimate this on its own.
     :return: The path to a FASTA file containing an assembled transcriptome.
     """
-    if threads is None:
-        threads = utils.get_threads()
+    threads = utils.get_threads()
 
     transcriptome = config.get("transcriptome")
     if transcriptome is None:
         transcriptome = config.get("proteome_fasta")
     if transcriptome is None:
-        reads = _trim_reads(r1, r2, threads)
+        reads = _trim_reads(config.get("R1"), config.get("R2"), threads)
         transcriptome = _assemble_transcriptome(reads["r1"], reads.get("r2"))
     return transcriptome
 

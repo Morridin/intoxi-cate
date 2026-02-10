@@ -7,131 +7,10 @@ from pathlib import Path
 import pandas as pd
 from typing import Iterable
 
-from lib.config import config
 from lib.utils import global_output
-from lib import utils
+from lib import config, utils, assemble_transcriptome, cluster_peptides
 
 from Bio import SeqIO
-
-
-
-
-
-if 'contaminants' in config and config['contaminants'] not in [None, ""]:
-    def build_contaminants_database(fasta_db: str = config.get("contaminants")) -> Path:
-        """
-        builds blast database for the removal of contaminants
-        Todo: make this optional like in the original code
-        :param fasta_db: A string representing the path to the fasta database.
-        :return The path to the blast database file.
-        """
-        blast_db = global_output(fasta_db.split("/")[-1] + ".out")
-
-        blast_db.touch()
-        subprocess.run(
-            f"makeblastdb -dbtype nucl -in {fasta_db} -out {blast_db}"
-        )
-
-        return blast_db
-
-
-    def blast_on_contaminants(blast_db: Path, contigs: Path) -> Path:
-        """
-        performs the actual blast of the contigs against the contaminants database
-        :param blast_db: The path to the blast database file - the return value from build_contaminants_database
-        :param contigs: The path leading to a fasta file holding transcriptome data.
-        :return: The path to the result of running blast.
-        """
-        blast_result = global_output(config.get("basename") + ".blastsnuc.out")
-
-        e_value: float = config.get("contamination_evalue")
-        threads: int = config.get("threads")
-
-        subprocess.run(
-            f"blastn -db {blast_db} -query {contigs} -out {blast_result} -outfmt 6 -evalue {e_value} -max_target_seqs 1 -num_threads {threads}"
-        )
-
-        return blast_result
-
-
-    def filter_contaminants(contigs: Path, blast_result: Path) -> Path:
-        """
-        performs the actual filtering
-        :param contigs: The path leading to a fasta file holding transcriptome data.
-        :param blast_result: The return value from blast_on_contaminants - a path leading to the blastn results file.
-        :return: The path to the file containing the blastn result filtered from the contaminants.
-        """
-        filtered_contigs = global_output(config.get("basename") + ".filtered.fasta")
-
-        records = []
-        with open(blast_result) as infile:
-            for line in infile:
-                line = line.rstrip()
-                if line[0] != "#":
-                    records.append(line.split()[0])  # we recover the ID of the significan hits
-
-        with open(filtered_contigs, "w") as outfile:
-            for rec in SeqIO.parse(contigs, "fasta"):
-                if rec.id not in records:
-                    SeqIO.write(rec, outfile, "fasta")
-
-        return filtered_contigs
-
-
-def detect_orfs(nucleotide_sequences: Path, minlen=99, maxlen=30000000) -> Path:
-    """
-    finds complete orfs within the input nucleotide sequences.
-    DeTox were testing this with orfipy instead of orffinder to leverage multithreading
-    :param nucleotide_sequences: The path leading to a fasta file holding transcriptome data/blastn results.
-    :param minlen: minimum length an orf needs to have to be considered
-    :param maxlen: maximum length an orf needs to have to be considered
-    :return: The path leading to the faa file holding the nucleotide sequences that are considered to be complete orfs.
-    """
-    aa_sequences = global_output(config.get("basename") + ".faa")
-
-    threads = config.get("threads")
-
-    subprocess.run(
-        f"orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {aa_sequences} --min {minlen} --max {maxlen} {nucleotide_sequences} --outdir ."
-    )
-
-    return nucleotide_sequences
-
-
-def drop_X(aa_sequences: Path) -> Path:
-    """
-    removes all entries from a nucleotide sequence file that contain at least one `X`
-    :param aa_sequences: The path to an faa file holding nucleotide sequences.
-    :return: The path to the faa file that holds the filtered nucleotide sequences.
-    """
-    drop_sequence = global_output(config.get('basename') + "_noX.faa")
-
-    with open(drop_sequence, "w") as outfile:
-        for seq in SeqIO.parse(aa_sequences, "fasta"):
-            if "X" not in seq.seq:
-                SeqIO.write(seq, outfile, "fasta")
-
-    return drop_sequence
-
-
-def cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memory: int) -> Path:
-    """
-    runs cd-hit on predicted peptide to remove excess redundancy
-    :param aa_sequences: The path to an faa file holding nucleotide sequences.
-    :param clustering_threshold: The sequence identity threshold that guides cluster generation.
-        Sequences that are sufficiently similar to pass this threshold are clustered together.
-    :param max_memory: The maximum amount of RAM that this function may use, in Gigabyte (GB)
-    :return: The path to the faa file that holds the clustered nucleotide sequences/the sequences representing the clusters.
-    """
-    filtered_aa_sequences = global_output(config.get("basename") + ".clustered.fasta")
-
-    threads = config.get("threads")
-
-    subprocess.run(
-        f"cd-hit -i {aa_sequences} -o {filtered_aa_sequences} -c {clustering_threshold} -M {max_memory} -T {threads} -d 40"
-    )
-
-    return filtered_aa_sequences
 
 
 def trim_peptides(aa_sequences: Path) -> Path:
@@ -634,6 +513,7 @@ if __name__ == "__main__":
         if config.get("R1") is not None or config.get("R2") is not None:
             raise ValueError("You must not fill in R1/R2 in config.yaml when proteome_fasta is used.")
 
-    threads = config.get("threads")
+    transcriptome = assemble_transcriptome()
+    clustered_peptides = cluster_peptides(transcriptome)
 
     build_output_table();
