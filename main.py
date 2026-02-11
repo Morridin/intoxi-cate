@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Iterable
 
 from lib.utils import global_output
-from lib import config, utils, assemble_transcriptome, cluster_peptides, hmmer
+from lib import config, utils, assemble_transcriptome, cluster_peptides, hmmer, blast_on_toxins, blast_on_uniprot
 
 from Bio import SeqIO
 
@@ -142,46 +142,6 @@ def extract_non_tm_peptides(phobius_result: Path, fasta_file: Path) -> Path:
     return non_tm_peptides
 
 
-def build_toxin_blast_db() -> Path:
-    """
-    builds a blast database for toxin prediction
-    :return: The path to the generated database file
-    """
-    db = config.get("toxin_db")
-    outfile = global_output(config.get("toxin_db").split("/")[-1] + ".dmnd")
-
-    subprocess.run(
-        f"diamond makedb --db {outfile} --in {db}"
-    )
-
-    return outfile
-
-
-def blast_on_toxins(orf_fasta_clustered_file: Path, db_file: Path, e_value: float = 1e-10) -> Path:
-    """
-    Runs blastp against the toxin database.
-    The query are the peptides without any signal sequence.
-
-    The rule runs blast and extracts the fasta at the same time.
-    Might be split in two rules for easier management.
-
-    :param orf_fasta_clustered_file: A filtered and clustered fasta file containing amino acids.
-    :param db_file: A blast database file.
-    :param e_value: The evalue to use for blastp
-    :return: The Path to a file containing the blast results.
-    """
-    threads = config.get("threads")
-
-    blast_result = global_output(config.get("basename") + "_toxin_blast_results.tsv")
-
-    build_header = f"echo \"qseqid\ttoxinDB_sseqid\ttoxinDB_pident\ttoxinDB_evalue\" > {blast_result}"
-    command_line = f"{build_header} && diamond blastp -q {orf_fasta_clustered_file} --evalue {e_value} --max-target-seqs 1 --threads {threads} -d {db_file} --outfmt 6 qseqid sseqid pident evalue >> {blast_result}"
-
-    subprocess.run(command_line, shell=True)
-
-    return blast_result
-
-
 def retrieve_orfs_with_blast_without_signalp(nonsec_fasta_file: Path, blast_toxins_result: Path) -> Path:
     """
     Filters `nonsec_fasta_file` for the peptides in `blast_toxins_result`.
@@ -271,48 +231,6 @@ def _find_repetition(size: int, seq: pd.Series, threshold: int) -> list:
 
 
 ### optional rules
-def download_uniprot():
-    db_dir = global_output("databases/uniprot")
-    db_dir.mkdir(parents=True, exist_ok=True)
-
-    database = global_output("databases/uniprot/uniprot_sprot.fasta.gz")
-
-    url = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz"
-
-    urllib.request.urlretrieve(url, database)
-
-
-def make_uniprot_blast_database(fasta_file: Path):
-    """
-    builds a blast database from the uniprot fasta
-    :return: 
-    """
-    db_file = global_output("uniprot_blast_db.dmnd")
-    subprocess.run(
-        f"diamond makedb --in {fasta_file} --db {db_file}"
-    )
-
-
-def blast_on_uniprot(fasta_file: Path, db_file: Path, e_value: float = 1e-10) -> Path:
-    """
-    run blast against the uniprot database, return only the best hit
-    :type e_value: 
-    :type db_file: 
-    :type fasta_file: 
-    :return: 
-    """
-    blast_result = global_output(config.get("basename") + "_uniprot_blast_results.tsv")
-
-    threads = config.get('threads')
-
-    with open(blast_result, "w") as f:
-        f.write("qseqid\tuniprot_sseqid\tuniprot_pident\tuniprot_evalue")
-
-    subprocess.run(
-        f"diamond blastp -d {db_file} -q {fasta_file} --evalue {e_value} --outfmt 6 qseqid sseqid pident evalue --max-target-seqs 1 --threads {threads} >> {blast_result}"
-    )
-
-    return blast_result
 
 
 # TODO: follow this comment for the rule that will wraps everything up and create the final table.
@@ -352,7 +270,7 @@ def build_output_table(wolfpsort: Path, uniprot_blast: Path, tpm_threshold: int 
     """
     fasta_file = retrieve_candidate_toxins()
     signalp_result = filter_signalp_outputs()
-    hmm_search = parse_hmmsearch_output()
+    hmm_search = hmmer()
     toxins_blast = blast_on_toxins()
     repeated_aa = detect_repeated_aa()
 
@@ -451,8 +369,11 @@ if __name__ == "__main__":
     transcriptome = assemble_transcriptome()
     clustered_peptides = cluster_peptides(transcriptome)
 
+    toxins_blast_result = blast_on_toxins(clustered_peptides)
+
     toxin_candidates = Path(".") # TODO: Move toxin candidate generation to module.
 
     hmmer_result = hmmer(toxin_candidates)
+    uniprot_blast_result = blast_on_uniprot(toxin_candidates)
 
     build_output_table()

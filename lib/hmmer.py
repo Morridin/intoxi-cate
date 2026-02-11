@@ -6,6 +6,7 @@ The public API yields the results of parse_hmmsearch_output, but as pandas DataF
 """
 import gzip
 import subprocess
+from functools import cache
 from pathlib import Path
 
 import httpx
@@ -75,7 +76,7 @@ def _parse_hmmsearch_output(domain_table: Path) -> pd.DataFrame:
 
     return aggregated_domains.drop(["query name"], axis=1)
 
-
+@cache
 def hmmer(toxin_candidates: Path) -> pd.DataFrame:
     """
     Downloads the required HMM, runs HMMer on it against the sequences in toxin_candidates and returns the aggregated domains in a Pandas DataFrame.
