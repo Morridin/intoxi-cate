@@ -7,6 +7,7 @@ build_contaminants_db <- blast_on_contaminants <- filter_contaminants <- detect_
 The module features a public API that yields the results of cluster_peptides.
 """
 import subprocess
+from functools import cache
 from pathlib import Path
 
 from Bio import SeqIO
@@ -127,7 +128,7 @@ def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memor
 
     return filtered_aa_sequences
 
-
+@cache
 def cluster_peptides(transcriptome: Path):
     """
     Runs the complete section that checks for contaminants and finally clusters peptides.

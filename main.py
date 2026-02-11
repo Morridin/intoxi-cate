@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Iterable
 
 from lib.utils import global_output
-from lib import config, utils, assemble_transcriptome, cluster_peptides
+from lib import config, utils, assemble_transcriptome, cluster_peptides, hmmer
 
 from Bio import SeqIO
 
@@ -214,71 +214,6 @@ def retrieve_candidate_toxins(non_tm_peptides: Path, hits_fasta: Path) -> Path:
     )
 
     return output
-
-
-def download_pfam():
-    """
-    ?
-    :return:
-    """
-    db_dir = global_output("databases/pfam")
-    db_dir.mkdir(parents=True, exist_ok=True)
-
-    pfam_db = global_output("databases/pfam/Pfam-A.hmm")
-
-    url = "https://ftp.ebi.ac.uk/pub/databases/Pfam/current_release/Pfam-A.hmm.gz"
-
-    response = urllib.request.urlopen(url)
-    zipped_data = response.read()
-
-    data = gzip.decompress(zipped_data)
-
-    with open(pfam_db, "wb") as outfile:
-        outfile.write(data)
-
-    return pfam_db
-
-
-def run_hmmer(fasta_file: Path, pfam_db: Path) -> tuple[Path, Path]:
-    """
-    runs hmmer against the pfam database.
-    :param fasta_file:
-    :param pfam_db:
-    :return:
-    """
-    tblout = global_output(config.get("basename") + ".tblout")
-    domtblout = global_output(config.get("basename") + ".domtblout")
-
-    threads = config.get("threads")
-
-    subprocess.run(
-        f"hmmsearch --cut_ga --cpu {threads} --domtblout {domtblout} --tblout {tblout} {pfam_db} {fasta_file}"
-    )
-
-    return tblout, domtblout
-
-
-def parse_hmmsearch_output(domtblout: Path) -> Path:
-    """
-    parses and aggregates the hmmer output, uses the domtblout file
-    :return:
-    """
-
-    filtered_table = global_output(config.get("basename") + ".domtblout.tsv")
-
-    df_domtblout = pd.read_csv(
-        domtblout,
-        comment="#",
-        delim_whitespace=True,
-        usecols=[0, 1, 2, 3, 4],
-        names=["target name", "accession_t", "tlen", "query name", "accession_Q"]
-    )
-
-    aggregated_domains = df_domtblout.groupby('target name')['query name'].apply(list).reset_index()
-    aggregated_domains['pfam domains'] = aggregated_domains['query name'].apply(lambda x: "; ".join(set(x)))
-    aggregated_domains.to_csv(f"{filtered_table}", sep="\t", index=False)
-
-    return filtered_table
 
 
 def run_wolfpsort(candidate_toxins: Path) -> Path:
@@ -515,5 +450,9 @@ if __name__ == "__main__":
 
     transcriptome = assemble_transcriptome()
     clustered_peptides = cluster_peptides(transcriptome)
+
+    toxin_candidates = Path(".") # TODO: Move toxin candidate generation to module.
+
+    hmmer_result = hmmer(toxin_candidates)
 
     build_output_table();
