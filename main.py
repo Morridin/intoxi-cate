@@ -455,4 +455,4 @@ if __name__ == "__main__":
 
     hmmer_result = hmmer(toxin_candidates)
 
-    build_output_table();
+    build_output_table()

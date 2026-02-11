@@ -8,10 +8,12 @@ from pathlib import Path
 from typing import Generator
 
 import pandas as pd
+import snakemake
 from Bio import SeqIO
 
-from lib import snakemake_checkpoints, config
+from lib import config
 
+snakemake_checkpoints = snakemake.checkpoints
 
 def _get_signalp_splits(wildcards):
     checkpoint_output = snakemake_checkpoints.split_fasta.get(**wildcards).output[0]
@@ -19,7 +21,7 @@ def _get_signalp_splits(wildcards):
                   i=glob_wildcards(join(checkpoint_output, '{i}.fasta')).i)
 
 
-def _generate_fasta_records(fasta_path: Path) -> Generator[dict[str, str]]:
+def _generate_fasta_records(fasta_path: Path) -> Generator[dict[str, str], None, None]:
     """
     Yields records from a fasta file.
     :param fasta_path: The path to the fasta file.
@@ -91,7 +93,7 @@ def get_cys_pattern(seq):
     """
     pattern = ""
     status = False
-    if not pd.isna(seq) and seq.count('C') >= 4:
+    if pd.isna(seq).empty and seq.count('C') >= 4:
         for char in seq:
             if char == "C":
                 pattern += "C"
