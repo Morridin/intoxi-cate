@@ -8,78 +8,10 @@ import pandas as pd
 from typing import Iterable
 
 from lib.utils import global_output
-from lib import config, utils, assemble_transcriptome, cluster_peptides, hmmer, blast_on_toxins, blast_on_uniprot
+from lib import config, utils, assemble_transcriptome, cluster_peptides, hmmer, blast_on_toxins, blast_on_uniprot, \
+    signalp
 
 from Bio import SeqIO
-
-
-def trim_peptides(aa_sequences: Path) -> Path:
-    """
-    trims all peptides to only the first 50 aminoacids, as they are the only useful part for signalp. This step improves load time.
-    :param aa_sequences: The path to an faa file holding clustered nucleotide sequences (see cluster_peptides).
-    :return: The path to an faa file holding the same nucleotide sequences, but cut off after the fiftieth aminoacid.
-    """
-    trimmed_sequences = global_output(config.get("basename") + ".trimmed.faa")
-
-    with open(trimmed_sequences, "w") as outfile:
-        for seq in SeqIO.parse(aa_sequences, "fasta"):
-            outfile.write(f">{seq.id}\n{seq.seq[:50]}\n")
-
-    return trimmed_sequences
-
-
-def checkpoint__split_fasta(fasta_file: Path, chunk_size: int = 5000) -> Path:
-    """
-    ?
-    :param chunk_size:
-    :param fasta_file:
-    :return:
-    """
-    split_dir = global_output("split_files")
-
-    split_dir.mkdir(parents=True, exist_ok=True)
-
-    threads = config.get("threads")
-
-    subprocess.run(
-        f"seqkit split2 -s {chunk_size} -O {split_dir} --by-size-prefix \"\"  -j {threads} {fasta_file}"
-    )
-
-    return split_dir
-
-
-def run_signalp(fasta_file: Path, prefix: Path, signalp_path: Path) -> Path:
-    """
-    ?
-    :param fasta_file: Default: global_output("")+"split_files/{i}.faa"
-    :param prefix: Default: global_output("split_files/{i}"),
-    :param signalp_path: Default: config.get("signalp_path")
-    :return: ?
-    """
-    if not (signalp_path / "signalp").exists():
-        subprocess.run(
-            f"signalp -batch 5000 -fasta {fasta_file} -org euk -format short -verbose -prefix {prefix}"
-        )
-    else:
-        subprocess.run(
-            f"./{signalp_path}signalp -batch 5000 -fasta {fasta_file} -org euk -format short -verbose -prefix {prefix}"
-        )
-    return fasta_file.with_name(fasta_file.stem + "_summary.signalp5")
-
-
-def filter_signalp_outputs(files: Iterable[Path], threshold: float = 0.7) -> Path:
-    """
-    filters the output of the multiple signalp runs and extracts only those with a probability of signal peptide greater than a threshold.
-    Only one file should be produced from the multiple signalp files.
-    Two outputs are expected: a filtered (or not?) table with the signalp results and a filtered fasta of only those peptides with a signal
-    :return:
-    """
-    out_file = global_output(config.get("basename") + "_filtered_sigp.tsv")
-
-    subprocess.run(
-        f"awk -v b={threshold} -F'\t' '!/^#/ && !/\?/  && $3 > b' {" ".join({str(file) for file in files})} > {out_file}")
-
-    return out_file
 
 
 def extract_secreted_peptides(signalp_result: Path, fasta_file: Path) -> tuple[Path, Path]:
@@ -269,7 +201,7 @@ def build_output_table(wolfpsort: Path, uniprot_blast: Path, tpm_threshold: int 
     :return:
     """
     fasta_file = retrieve_candidate_toxins()
-    signalp_result = filter_signalp_outputs()
+    signalp_result = signalp()
     hmm_search = hmmer()
     toxins_blast = blast_on_toxins()
     repeated_aa = detect_repeated_aa()
@@ -370,6 +302,8 @@ if __name__ == "__main__":
     clustered_peptides = cluster_peptides(transcriptome)
 
     toxins_blast_result = blast_on_toxins(clustered_peptides)
+
+    signalp_results = signalp(clustered_peptides)
 
     toxin_candidates = Path(".") # TODO: Move toxin candidate generation to module.
 

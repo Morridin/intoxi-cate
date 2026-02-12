@@ -14,9 +14,11 @@ from .assemble_transcriptome import *
 from .generate_peptides import *
 from .hmmer import *
 from .blast import *
+from .signalp import *
 
 # Set parts of lib
 __all__ = ["config", "utils"]
 
 # Add the different modules
-__all__ += ["assemble_transcriptome", "run_salmon", "cluster_peptides", "hmmer", "blast_on_toxins", "blast_on_uniprot"]
+__all__ += ["assemble_transcriptome", "run_salmon", "cluster_peptides", "hmmer", "blast_on_toxins", "blast_on_uniprot",
+            "signalp"]

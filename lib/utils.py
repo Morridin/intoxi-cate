@@ -3,22 +3,13 @@ Here be all the miscellaneous utilities that fit nowhere else.
 """
 import os
 from functools import cache
-from os.path import join
 from pathlib import Path
 from typing import Generator
 
 import pandas as pd
-import snakemake
 from Bio import SeqIO
 
 from lib import config
-
-snakemake_checkpoints = snakemake.checkpoints
-
-def _get_signalp_splits(wildcards):
-    checkpoint_output = snakemake_checkpoints.split_fasta.get(**wildcards).output[0]
-    return expand(global_output("") / 'split_files/{i}.fasta',
-                  i=glob_wildcards(join(checkpoint_output, '{i}.fasta')).i)
 
 
 def _generate_fasta_records(fasta_path: Path) -> Generator[dict[str, str], None, None]:
@@ -51,40 +42,6 @@ def global_output(path: str | Path):
     return Path(output_dir) / path
 
 
-def expand(path: Path | str, **kwargs) -> Path | tuple[Path, ...]:
-    """
-    Temp function stub to reduce error markings
-    TODO: Remove
-    :param path: -
-    :param kwargs: -
-    :return:
-    """
-    _ = path, kwargs
-    raise NotImplementedError()
-
-
-def glob_wildcards(path: str) -> str:
-    """
-    Temp function stub to reduce error markings
-    TODO: Remove
-    :param path: -
-    :return:
-    """
-    _ = path
-    raise NotImplementedError()
-
-
-def aggregate_splits(wildcards):
-    """
-    ?
-    :param wildcards:
-    :return:
-    """
-    checkpoint_output = snakemake_checkpoints.split_fasta.get(**wildcards).output[0]
-    return expand(global_output("") + "split_files/{i}_summary.signalp5",
-                  i=glob_wildcards(join(checkpoint_output, "{i}.faa")).i)
-
-
 def get_cys_pattern(seq):
     """
     ???
@@ -107,6 +64,7 @@ def get_cys_pattern(seq):
     if pattern == "":
         pattern = None
     return pattern
+
 
 @cache
 def get_threads() -> int:
