@@ -93,7 +93,9 @@ def _filter_signalp_outputs(files: Iterable[Path], threshold: float) -> pd.DataF
 
     :return: A DataFrame containing only those lines from the input files that passed the filter.
     """
-    data = [pd.read_csv(file, sep="\\s+", index_col=0, header=None, comment="#") for file in files]
+    data = [pd.read_csv(file, sep="\\s+", index_col=0, header=None, comment="#",
+                        names=["ID", "signalp_prediction", "prob_signal", "prob_nosignal", "cutsite"]) for file in
+            files]
 
     data = pd.concat(data)
     data = data[

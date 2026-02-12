@@ -15,6 +15,7 @@ from lib import utils, config
 
 __all__ = ["assemble_transcriptome", "run_salmon"]
 
+
 @cache
 def _trim_reads(r1: Path, r2: Path | None, threads: int) -> dict[str, Path]:
     """
@@ -35,7 +36,7 @@ def _trim_reads(r1: Path, r2: Path | None, threads: int) -> dict[str, Path]:
     if r2 is not None:
         output |= {
             "r2": base_path / r2.name,
-            "r1_unpaired": base_path / f"unpaired.{r1.name}", # Currently not used
+            "r1_unpaired": base_path / f"unpaired.{r1.name}",  # Currently not used
             "r2_unpaired": base_path / f"unpaired.{r2.name}"  # Currently not used
         }
         command_extension = f" -I {r2} -O {output["r2"]} --unpaired1 {output["r1_unpaired"]} --unpaired2 {output["r2_unpaired"]} --detect_adapter_for_pe "
@@ -49,6 +50,7 @@ def _trim_reads(r1: Path, r2: Path | None, threads: int) -> dict[str, Path]:
     )
 
     return output
+
 
 def _assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
     """
@@ -75,6 +77,7 @@ def _assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
 
     return assembly
 
+
 @cache
 def assemble_transcriptome() -> Path:
     """
@@ -98,19 +101,21 @@ def assemble_transcriptome() -> Path:
 
 
 @cache
-def run_salmon(r1: Path, r2: Path | None, threads: int = None) -> Path:
+def run_salmon() -> Path:
+    threads = utils.get_threads()
+    transcriptome = assemble_transcriptome()
+    reads = _trim_reads(config.get("R1"), config.get("R2"), threads)
+
+    return _run_salmon(transcriptome, reads["r1"], reads.get("r2"), threads)
+
+
+@cache
+def _run_salmon(transcriptome: Path, r1: Path, r2: Path | None, threads: int) -> Path:
     """
     Runs salmon on the reads and assembled transcriptome to quantify <?>
     :return:
     """
-
-    if threads is None:
-        threads = utils.get_threads()
-    transcriptome = assemble_transcriptome(r1, r2, threads)
-
-    base_dir = utils.global_output(config.get('basename'))
-
-    quant_dir = base_dir.with_name(base_dir.name + "_quant")
+    quant_dir = utils.global_output(config.get("basename") + "_quant")
     quantification = quant_dir / "quant.sf"
 
     index = utils.global_output("salmon.idx")

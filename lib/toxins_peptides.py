@@ -11,6 +11,7 @@ Its public API consists of the outputs of retrieve_candidate_toxins and filter_s
 """
 import subprocess
 import tempfile
+from functools import cache
 from pathlib import Path
 
 import pandas as pd
@@ -23,6 +24,7 @@ __all__ = ["retrieve_candidate_toxins"]
 
 
 # ============================= Public functions ============================= #
+@cache
 def retrieve_candidate_toxins(clustered_peptides: Path, toxins_blast_result: pd.DataFrame,
                               signalp_result: pd.DataFrame) -> Path:
     """
@@ -36,6 +38,7 @@ def retrieve_candidate_toxins(clustered_peptides: Path, toxins_blast_result: pd.
     phobius_result = _run_phobius(secreted_peptides)
 
     output_file = utils.global_output(config.get("basename") + "_candidate_toxins.fasta")
+
     with open(output_file, "w") as out_file:
         for seq in pd.concat((_filter_fasta_file(secreted_peptides, phobius_result),
                               _filter_fasta_file(non_secreted_peptides, toxins_blast_result))).iterrows():
@@ -74,7 +77,7 @@ def _run_phobius(secreted_peptides: Path) -> pd.DataFrame:
     """
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as table:
         subprocess.run(
-            f"phobius.pl -short {secreted_peptides} | sed 's/\s\+/\t/g' | awk '$2 == 0' > {table}"
+            f"phobius.pl -short {secreted_peptides} | sed 's/\\s\\+/\\t/g' | awk '$2 == 0' > {table}"
         )
 
         return pd.read_csv(table, sep="\\s+", index_col=0)
@@ -91,5 +94,5 @@ def _filter_fasta_file(fasta_file: Path, filter_map: pd.DataFrame) -> pd.DataFra
     :return: A DataFrame containing the peptides present in both files.
     """
 
-    records = pd.DataFrame([(rec.id, rec) for rec in SeqIO.parse(fasta_file, "fasta")]).set_index(0)
+    records = utils.fasta_to_dataframe(fasta_file).set_index("ID")
     return records.drop(records.join(filter_map, how="left_anti", rsuffix="_filter").index)

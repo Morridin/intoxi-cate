@@ -11,6 +11,8 @@ from Bio import SeqIO
 
 from lib import config
 
+__all__ = ["fasta_to_dataframe", "global_output", "get_cys_pattern", "get_threads"]
+
 
 def _generate_fasta_records(fasta_path: Path) -> Generator[dict[str, str], None, None]:
     """
