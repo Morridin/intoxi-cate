@@ -133,7 +133,7 @@ def cluster_peptides(transcriptome: Path):
     """
     Runs the complete section that checks for contaminants and finally clusters peptides.
     :param transcriptome: The path to a FASTA file containing transcriptome data, e.g. the result of `assemble_transcriptome`
-    :return:
+    :return: A FASTA file containing amino acid sequences of the representatives of the different peptide clusters.
     """
     threads = utils.get_threads()
 

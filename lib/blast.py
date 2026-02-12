@@ -54,7 +54,7 @@ def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, colum
             shell=True
         )
 
-        blast_result = pd.read_csv(result_file, sep="\t")
+        blast_result = pd.read_csv(result_file, sep="\t", index_col=0)
 
     return blast_result
 
@@ -124,5 +124,3 @@ def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
     columns = "qseqid\tuniprot_sseqid\tuniprot_pident\tuniprot_evalue"
 
     return _run_blast(toxin_candidates, db_file, e_value, threads, columns)
-
-    pass
