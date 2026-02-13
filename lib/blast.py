@@ -9,6 +9,7 @@ download_uniprot <- make_uniprot_blast_database <- blast_on_uniprot
 It features a public API that yields the results of blast_on_toxins and blast_on_uniprot.
 """
 import subprocess
+import sys
 import tempfile
 from functools import cache
 from pathlib import Path
@@ -30,7 +31,8 @@ def _build_blast_db(source_file: Path, target_file: Path):
     :param target_file: The path to the file where diamond shall store the newly created DB.
     """
     subprocess.run(
-        f"diamond makedb --in {source_file} --db {target_file}"
+        f"diamond makedb --in {source_file} --db {target_file}",
+        shell=True
     )
 
 
@@ -47,7 +49,7 @@ def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, colum
     blast_result: pd.DataFrame
 
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as result_file:
-        result_file.write(columns)
+        result_file.write(columns.encode("utf-8"))
 
         subprocess.run(
             f"diamond blastp -d {db} -q {aa_sequences} --evalue {e_value} --max-target-seqs 1 --threads {threads} --outfmt 6 qseqid sseqid pident evalue >> {result_file.name}",
@@ -71,7 +73,10 @@ def blast_on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
     :param filtered_clustered_aa_sequences: A filtered and clustered FASTA file containing amino acids.
     :return: A DataFrame containing the BLAST results.
     """
-    db_source: Path = config.get("toxin_db")
+    db_source = config.get_path("toxin_db")
+    if db_source is None:
+        print("Missing config value 'toxin_db' pointing at the Toxins blast database file!", file=sys.stderr)
+        exit(1)
     db_file = utils.global_output(db_source.name + ".dmnd")
     _build_blast_db(db_source, db_file)
 
