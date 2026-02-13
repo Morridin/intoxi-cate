@@ -27,7 +27,8 @@ def _build_contaminants_database(fasta_db: str) -> Path:
 
     blast_db.touch()
     subprocess.run(
-        f"makeblastdb -dbtype nucl -in {fasta_db} -out {blast_db}"
+        f"makeblastdb -dbtype nucl -in {fasta_db} -out {blast_db}",
+        shell=True
     )
 
     return blast_db
@@ -45,7 +46,8 @@ def _blast_on_contaminants(blast_db: Path, contigs: Path, e_value: float, thread
     blast_result = utils.global_output(config.get("basename") + ".blastsnuc.out")
 
     subprocess.run(
-        f"blastn -db {blast_db} -query {contigs} -out {blast_result} -outfmt 6 -evalue {e_value} -max_target_seqs 1 -num_threads {threads}"
+        f"blastn -db {blast_db} -query {contigs} -out {blast_result} -outfmt 6 -evalue {e_value} -max_target_seqs 1 -num_threads {threads}",
+        shell=True
     )
 
     return blast_result
@@ -88,7 +90,8 @@ def _detect_orfs(nucleotide_sequences: Path, *, min_len=99, max_len=30_000_000, 
     aa_sequences = utils.global_output(config.get("basename") + ".faa")
 
     subprocess.run(
-        f"orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {aa_sequences} --min {min_len} --max {max_len} {nucleotide_sequences} --outdir ."
+        f"orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {aa_sequences} --min {min_len} --max {max_len} {nucleotide_sequences} --outdir .",
+        shell=True
     )
 
     return nucleotide_sequences
@@ -123,7 +126,8 @@ def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memor
     filtered_aa_sequences = utils.global_output(config.get("basename") + ".clustered.fasta")
 
     subprocess.run(
-        f"cd-hit -i {aa_sequences} -o {filtered_aa_sequences} -c {clustering_threshold} -M {max_memory * 1000} -T {threads} -d 40"
+        f"cd-hit -i {aa_sequences} -o {filtered_aa_sequences} -c {clustering_threshold} -M {max_memory * 1000} -T {threads} -d 40",
+        shell=True
     )
 
     return filtered_aa_sequences
