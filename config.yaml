@@ -1,5 +1,5 @@
 transcriptome: test/transcriptome.fasta
-output_dir: /path/outputDir
+output_dir: output/test/
 basename: basename
 memory: 24 # memory in GB, might change later
 threads: 16 # logic threads, not physical cores, for clarity
@@ -8,8 +8,8 @@ R2: test/R2.fastq.gz # if paired-end reads
 contaminants: test/contaminants.fasta
 proteome_fasta: #path/to/proteome.faa # if run in proteome mode
 toxin_db: test/toxin_db.fasta
-pfam_db_path: test/Pfam-A.hmm
-swissprot_db_path: test/uniprot.fasta.gz
+pfam_db_path:
+swissprot_db_path:
 toxins_evalue: "1e-10"
 contamination_evalue: "1e-5"
 clustering_threshold: "0.99"
