@@ -33,13 +33,16 @@ def fasta_to_dataframe(fasta_path):
     return pd.DataFrame(_generate_fasta_records(fasta_path))
 
 
-def global_output(path: str | Path):
+def global_output(path: str | Path) -> Path:
     """
     Constructs the global output path.
     """
     if type(path) == str:
         path = path.strip()
+
     output_dir = config.get("output_dir", "").strip()
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True, exist_ok=True)
 
     return Path(output_dir) / path
 
