@@ -40,11 +40,11 @@ def global_output(path: str | Path) -> Path:
     if type(path) == str:
         path = path.strip()
 
-    output_dir = config.get("output_dir", "").strip()
+    output_dir = Path(config.get("output_dir", "").strip())
     if not output_dir.exists():
         output_dir.mkdir(parents=True, exist_ok=True)
 
-    return Path(output_dir) / path
+    return output_dir / path
 
 
 def get_cys_pattern(seq):
