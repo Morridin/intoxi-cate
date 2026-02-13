@@ -27,7 +27,7 @@ class Config:
         with open(config_path, "r") as f:
             self.config = dict(yaml.safe_load(f))
 
-    def get(self, key: str, default: Optional[T]) -> Optional[T]:
+    def get(self, key: str, default: Optional[T] = None) -> Optional[T]:
         """
         This function searches the config file given by config_path and returns the value associated with key in this file.
         If key is not found in config_path, or is an empty string, None is returned.

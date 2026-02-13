@@ -120,9 +120,6 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
     this rule merges the tabular output of the other rules and merges it in a single table.
     It uses the outputs list defined above.
     :param cys_pattern:
-    :param quant: Quantifications file from running salmon
-    :param wolfpsort: Output from running WolfPSort
-    :param uniprot_blast: Output from running `blast_on_uniprot`
     :param tpm_threshold: Threshold for tpm
     :param output_file: A TSV file summing up the entire pipeline result.
     """
