@@ -43,7 +43,11 @@ if __name__ == "__main__":
         uniprot_blast_result = None
 
     print(
-        f"The output can be found under {
+        f"\n\n"
+        f"# ============================================================================ #\n"
+        f"#                              Pipeline complete                               #\n"
+        f"# ============================================================================ #\n"
+        f"The final pipeline output can be found under {
         build_output_table(toxin_candidates, hmmer_result, toxins_blast_result, signalp_result, uniprot_blast_result, salmon_result)
         }"
     )

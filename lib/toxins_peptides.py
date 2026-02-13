@@ -24,7 +24,6 @@ __all__ = ["retrieve_candidate_toxins"]
 
 
 # ============================= Public functions ============================= #
-@cache
 def retrieve_candidate_toxins(clustered_peptides: Path, toxins_blast_result: pd.DataFrame,
                               signalp_result: pd.DataFrame) -> Path:
     """
@@ -68,7 +67,7 @@ def _extract_secreted_peptides(signalp_result: pd.DataFrame, clustered_peptides:
 
     return secreted_peptides, non_secreted_peptides
 
-
+@cache
 def _run_phobius(secreted_peptides: Path) -> pd.DataFrame:
     """
     Runs Phobius.
@@ -77,7 +76,8 @@ def _run_phobius(secreted_peptides: Path) -> pd.DataFrame:
     """
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as table:
         subprocess.run(
-            f"phobius.pl -short {secreted_peptides} | sed 's/\\s\\+/\\t/g' | awk '$2 == 0' > {table}"
+            f"phobius.pl -short {secreted_peptides} | sed 's/\\s\\+/\\t/g' | awk '$2 == 0' > {table}",
+            shell=True
         )
 
         return pd.read_csv(table, sep="\\s+", index_col=0)

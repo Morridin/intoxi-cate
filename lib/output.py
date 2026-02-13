@@ -87,9 +87,9 @@ def _detect_repeated_aa(candidate_toxins: Path, threshold: int) -> pd.DataFrame:
     :return:
     """
     secreted = utils.fasta_to_dataframe(f"{candidate_toxins}")
-    secreted["Repeats1"] = secreted.apply(lambda x: _find_repetition(1, x["Sequence"], threshold), axis=1)
-    secreted["Repeats2"] = secreted.apply(lambda x: _find_repetition(2, x["Sequence"], threshold), axis=1)
-    secreted["Repeats3"] = secreted.apply(lambda x: _find_repetition(3, x["Sequence"], threshold), axis=1)
+    secreted["Repeats2"] = _find_repetition(2, secreted["Sequence"], threshold)
+    secreted["Repeats1"] = _find_repetition(1, secreted["Sequence"], threshold)
+    secreted["Repeats3"] = _find_repetition(3, secreted["Sequence"], threshold)
     secreted["Repeats"] = secreted["Repeats1"] + secreted["Repeats2"] + secreted["Repeats3"]
     secreted['RepeatsTypes'] = secreted['Repeats'].apply(lambda t: [n for (n, _) in t])
     secreted['RepeatsLengths'] = secreted['Repeats'].apply(lambda t: [n for (_, n) in t])
@@ -155,34 +155,29 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
         df = df.drop(['EffectiveLength', 'NumReads'], axis=1)
 
     df = df.assign(Rating="")
-    df['Rating'] = df.apply(
-        lambda row: str(row['Rating'] + 'S') if pd.notna(row['signalp_prediction']) else str(row['Rating'] + '*'),
-        axis=1
-    )
-    df['Rating'] = df.apply(
-        lambda row: str(row['Rating'] + 'B') if pd.notna(row['toxinDB_sseqid']) else row['Rating'],
-        axis=1
-    )
+
+    mask = df["signalp_prediction"].notna()
+    df.loc[mask, 'Rating'] += "S"
+    df.loc[~mask, 'Rating'] += "*"
+
+    mask = df["toxinDB_sseqid"].notna()
+    df.loc[mask, "Rating"] += "B"
+
     if 'Cys_pattern' in df.columns:
-        df['Rating'] = df.apply(
-            lambda row: str(row['Rating'] + 'C') if pd.notna(row['Cys_pattern']) else row['Rating'],
-            axis=1
-        )
+        mask = df["Cys_pattern"].notna()
+        df.loc[mask, "Rating"] += "C"
+
     if 'TPM' in df.columns:
-        df['Rating'] = df.apply(
-            lambda row: str(row['Rating'] + 'T') if (float(row['TPM']) >= float(f"{tpm_threshold}")) else row['Rating'],
-            axis=1
-        )
-    df['Rating'] = df.apply(
-        lambda row: str(row['Rating'] + 'D') if pd.notna(row['pfam domains']) else row['Rating'],
-        axis=1
-    )
+        mask = df["TPM"].astype(float) >= tpm_threshold
+        df.loc[mask, "Rating"] += "T"
+
+    mask = df["pfam domains"].notna()
+    df.loc[mask, "Rating"] += "D"
+
     if 'uniprot_sseqid' in df.columns:
-        df['Rating'] = df.apply(
-            lambda row: str(row['Rating'] + '!') if pd.notna(row['uniprot_sseqid']) and pd.isna(
-                row['toxinDB_sseqid']) else row['Rating'],
-            axis=1
-        )
-    df = df.drop(['cut_site_position', 'query name'], axis=1)
+        mask = df["uniprot_sseqid"].notna() & df["toxinDB_sseqid"].isna()
+        df.loc[mask, "Rating"] += "!"
+
+    df = df.drop(['cut_site_position', 'query name'], axis=1, errors='ignore')
     df.rename(columns={'k': 'wolfpsort_prediction'}, inplace=True)
     df.drop_duplicates().to_csv(f"{output_file}", sep='\t', index=False)
