@@ -87,14 +87,15 @@ def _detect_orfs(nucleotide_sequences: Path, *, min_len=99, max_len=30_000_000, 
     :param threads: Number of threads available to this function
     :return: The path leading to the faa file holding the nucleotide sequences that are considered to be complete orfs.
     """
-    aa_sequences = utils.global_output(config.get("basename") + ".faa")
+    out_dir = utils.global_output(".")
+    aa_sequences = Path(config.get("basename") + ".faa")
 
     subprocess.run(
-        f"orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {aa_sequences} --min {min_len} --max {max_len} {nucleotide_sequences} --outdir .",
+        f"orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {aa_sequences} --min {min_len} --max {max_len} {nucleotide_sequences} --outdir {out_dir}",
         shell=True
     )
 
-    return nucleotide_sequences
+    return out_dir / aa_sequences
 
 
 def _drop_x(aa_sequences: Path) -> Path:
