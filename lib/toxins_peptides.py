@@ -67,6 +67,7 @@ def _extract_secreted_peptides(signalp_result: pd.DataFrame, clustered_peptides:
 
     return secreted_peptides, non_secreted_peptides
 
+
 @cache
 def _run_phobius(secreted_peptides: Path) -> pd.DataFrame:
     """
@@ -76,11 +77,14 @@ def _run_phobius(secreted_peptides: Path) -> pd.DataFrame:
     """
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as table:
         subprocess.run(
-            f"phobius.pl -short {secreted_peptides} | sed 's/\\s\\+/\\t/g' | awk '$2 == 0' > {table}",
+            f"phobius.pl -short {secreted_peptides} > {table.name}",
             shell=True
         )
 
-        return pd.read_csv(table, sep="\\s+", index_col=0)
+        data = pd.read_csv(table.name, sep="\\s+", index_col=0, header=None, skiprows=1,
+                           names=["SEQENCE ID", "TM", "SP", "PREDICTION"])
+
+        return data[data["TM"] == 0]
 
 
 def _filter_fasta_file(fasta_file: Path, filter_map: pd.DataFrame) -> pd.DataFrame:
