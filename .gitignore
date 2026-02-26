@@ -6,3 +6,4 @@ software/
 .idea/
 dataURLs.json
 installBiocDataPackage.sh
+output/

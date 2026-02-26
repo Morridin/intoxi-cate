@@ -37,9 +37,7 @@ def signalp(clustered_peptides: Path) -> pd.DataFrame:
         trimmed_peptides_dir.iterdir()
     ]
 
-    signalp_threshold = config.get("signalp_dvalue")
-    if signalp_threshold is None:
-        signalp_threshold = 0.7
+    signalp_threshold = float(config.get("signalp_dvalue", 0.7))
 
     return _filter_signalp_outputs(signalp_outputs, signalp_threshold)
 
@@ -102,10 +100,7 @@ def _filter_signalp_outputs(files: Iterable[Path], threshold: float) -> pd.DataF
                         names=["ID", "signalp_prediction", "prob_signal", "prob_nosignal", "cutsite"]) for file in
             files]
 
-    data = pd.concat(data)
-    data = data[
-        data[2] > threshold &
-        ~data.astype(str).apply(lambda r: r.str.contains("?", regex=False))
-        ]
+    data = pd.concat(data).dropna()
+    data = data[data.iloc[:, 1] > threshold]
 
     return data
