@@ -54,23 +54,22 @@ def global_output(path: str | Path) -> Path:
     return output_dir / path
 
 
-def get_cys_pattern(seq):
+def get_cys_pattern(seq: str) -> str | None:
     """
-    ???
-    :param seq:
-    :return:
+    Retrieves cysteine patterns within an aa sequence.
+    :param seq: A string encoding a sequence of amino acids.
+    :return: The cysteine pattern, if any or None else.
     """
     pattern = ""
     status = False
-    if pd.isna(seq).empty and seq.count('C') >= 4:
+    if isinstance(seq, str) and seq.strip() and seq.count('C') >= 4:
         for char in seq:
             if char == "C":
                 pattern += "C"
                 status = True
-            else:
-                if status:
-                    pattern += "-"
-                    status = False
+            elif status:
+                pattern += "-"
+                status = False
         if pattern[-1] == "-":
             pattern = pattern[0:-1]
     if pattern == "":

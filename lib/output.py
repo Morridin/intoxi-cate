@@ -87,9 +87,9 @@ def _detect_repeated_aa(candidate_toxins: Path, threshold: int) -> pd.DataFrame:
     :return:
     """
     secreted = utils.fasta_to_dataframe(f"{candidate_toxins}")
-    secreted["Repeats2"] = _find_repetition(2, secreted["Sequence"], threshold)
-    secreted["Repeats1"] = _find_repetition(1, secreted["Sequence"], threshold)
-    secreted["Repeats3"] = _find_repetition(3, secreted["Sequence"], threshold)
+    secreted["Repeats1"] = secreted["Sequence"].apply(lambda s: _find_repetition(1, s, threshold))
+    secreted["Repeats2"] = secreted["Sequence"].apply(lambda s: _find_repetition(2, s, threshold))
+    secreted["Repeats3"] = secreted["Sequence"].apply(lambda s: _find_repetition(3, s, threshold))
     secreted["Repeats"] = secreted["Repeats1"] + secreted["Repeats2"] + secreted["Repeats3"]
     secreted['RepeatsTypes'] = secreted['Repeats'].apply(lambda t: [n for (n, _) in t])
     secreted['RepeatsLengths'] = secreted['Repeats'].apply(lambda t: [n for (_, n) in t])
@@ -99,9 +99,9 @@ def _detect_repeated_aa(candidate_toxins: Path, threshold: int) -> pd.DataFrame:
     return secreted
 
 
-def _find_repetition(size: int, seq: pd.Series, threshold: int) -> list:
+def _find_repetition(size: int, seq: str, threshold: int) -> list:
     repetition = []
-    for cdl in range(0, size):
+    for cdl in range(0, size): # cdl is offset to left end of seq
         sub = [seq[i:i + size] for i in range(cdl, len(seq), size)]
         groups = itertools.groupby(sub)
         result = [(label, sum(1 for _ in group)) for label, group in groups]

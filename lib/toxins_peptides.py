@@ -98,5 +98,5 @@ def _filter_fasta_file(fasta_file: Path, filter_map: pd.DataFrame) -> pd.DataFra
     :return: A DataFrame containing the peptides present in both files.
     """
 
-    records = utils.fasta_to_dataframe(fasta_file).set_index("ID")
+    records = utils.fasta_to_dataframe(fasta_file, True).set_index("ID")
     return records.drop(records.join(filter_map, how="left_anti", rsuffix="_filter").index)
