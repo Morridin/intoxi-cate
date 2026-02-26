@@ -29,8 +29,11 @@ def signalp(clustered_peptides: Path) -> pd.DataFrame:
     chunk_size = 5000
     trimmed_peptides_dir = _trim_peptides(clustered_peptides, 50, chunk_size)
 
+    output_dir = trimmed_peptides_dir.with_name("signalp_outputs")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     signalp_outputs = [
-        _run_signalp(file, trimmed_peptides_dir / file.stem, chunk_size, config.get_path("signalp_path")) for file in
+        _run_signalp(file, output_dir / file.stem, chunk_size, config.get_path("signalp_path")) for file in
         trimmed_peptides_dir.iterdir()
     ]
 
@@ -81,11 +84,12 @@ def _run_signalp(input_sequences: Path, output_prefix: Path, chunk_size: int, si
         prefix = f"./{signalp_path}"
 
     subprocess.run(
-        f"{prefix}signalp -batch {chunk_size} -fasta {input_sequences} -org euk -format short -verbose -prefix {output_prefix}",
-        shell=True
+        f"./signalp -batch {chunk_size} -fasta {"../" * 3}{input_sequences} -org euk -format short -verbose -prefix {"../" * 3}{output_prefix}",
+        shell=True,
+        cwd=prefix
     )
 
-    return input_sequences.with_name(input_sequences.stem + "_summary.signalp5")
+    return Path(f"{output_prefix}_summary.signalp5")
 
 
 def _filter_signalp_outputs(files: Iterable[Path], threshold: float) -> pd.DataFrame:
@@ -94,7 +98,7 @@ def _filter_signalp_outputs(files: Iterable[Path], threshold: float) -> pd.DataF
 
     :return: A DataFrame containing only those lines from the input files that passed the filter.
     """
-    data = [pd.read_csv(file, sep="\\s+", index_col=0, header=None, comment="#",
+    data = [pd.read_csv(file, sep="\t", index_col=0, header=None, comment="#",
                         names=["ID", "signalp_prediction", "prob_signal", "prob_nosignal", "cutsite"]) for file in
             files]
 
