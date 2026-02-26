@@ -121,7 +121,7 @@ def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
 
     db_source = _download_uniprot(url)
     db_file = utils.global_output("uniprot_blast_db.dmnd")
-    _build_blast_db(db_file, db_source)
+    _build_blast_db(db_source, db_file)
 
     threads = utils.get_threads()
     e_value = config.get("swissprot_evalue")
