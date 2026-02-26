@@ -30,7 +30,7 @@ def signalp(clustered_peptides: Path) -> pd.DataFrame:
     trimmed_peptides_dir = _trim_peptides(clustered_peptides, 50, chunk_size)
 
     signalp_outputs = [
-        _run_signalp(file, trimmed_peptides_dir / file.stem, chunk_size, None) for file in
+        _run_signalp(file, trimmed_peptides_dir / file.stem, chunk_size, config.get("signalp_path")) for file in
         trimmed_peptides_dir.iterdir()
     ]
 
@@ -81,7 +81,8 @@ def _run_signalp(input_sequences: Path, output_prefix: Path, chunk_size: int, si
         prefix = f"./{signalp_path}"
 
     subprocess.run(
-        f"{prefix}signalp -batch {chunk_size} -fasta {input_sequences} -org euk -format short -verbose -prefix {output_prefix}"
+        f"{prefix}signalp -batch {chunk_size} -fasta {input_sequences} -org euk -format short -verbose -prefix {output_prefix}",
+        shell=True
     )
 
     return input_sequences.with_name(input_sequences.stem + "_summary.signalp5")
