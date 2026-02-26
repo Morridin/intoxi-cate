@@ -1,13 +1,13 @@
-transcriptome: test/transcriptome.fasta
-output_dir: output/test/
-basename: basename
-memory: 24 # memory in GB, might change later
+transcriptome: test-profundiconus/test.fasta
+output_dir: output/test-profundiconus/
+basename: profundiconus
+memory: 18 # memory in GB, might change later
 threads: 16 # logic threads, not physical cores, for clarity
-R1: test/R1.fastq.gz
-R2: test/R2.fastq.gz # if paired-end reads
-contaminants: test/contaminants.fasta
+R1:
+R2: # if paired-end reads
+contaminants:
 proteome_fasta: #path/to/proteome.faa # if run in proteome mode
-toxin_db: test/toxin_db.fasta
+toxin_db: test-profundiconus/toxins-db.fasta
 pfam_db_path:
 swissprot_db_path:
 toxins_evalue: "1e-10"

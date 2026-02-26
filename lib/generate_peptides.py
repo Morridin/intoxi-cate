@@ -88,9 +88,10 @@ def _detect_orfs(nucleotide_sequences: Path, *, min_len=99, max_len=30_000_000, 
     :return: The path leading to the faa file holding the nucleotide sequences that are considered to be complete orfs.
     """
     aa_sequences = utils.global_output(config.get("basename") + ".faa")
+    output_dir = utils.global_output("logs")
 
     subprocess.run(
-        f"orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {aa_sequences} --min {min_len} --max {max_len} {nucleotide_sequences} --outdir .",
+        f"orfipy --procs {threads} --start ATG --partial-3 --partial-5 --pep {aa_sequences} --min {min_len} --max {max_len} {nucleotide_sequences} --outdir {output_dir}",
         shell=True
     )
 
