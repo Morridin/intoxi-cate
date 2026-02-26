@@ -36,27 +36,29 @@ def _build_blast_db(source_file: Path, target_file: Path):
     )
 
 
-def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, columns: str) -> pd.DataFrame:
+def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, columns: list[str]) -> pd.DataFrame:
     """
     Runs BLASTp against the FASTA file given in `aa_sequences` on the database provided in `db`.
     :param aa_sequences: The path to a FASTA file containing the query sequences for the BLASTp run.
     :param db: The database on which BLASTp is to operate
     :param e_value: The e_value for BLASTp
     :param threads: The number of threads BLASTp shall use
-    :param columns: The column names for the returned DataFrame, as one, tab-separated string.
+    :param columns: The column names for the returned DataFrame, as list of strings.
     :return: A pandas DataFrame containing the BLASTp results.
     """
     blast_result: pd.DataFrame
 
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as result_file:
-        result_file.write(columns.encode("utf-8"))
-
         subprocess.run(
-            f"diamond blastp -d {db} -q {aa_sequences} --evalue {e_value} --max-target-seqs 1 --threads {threads} --outfmt 6 qseqid sseqid pident evalue >> {result_file.name}",
+            f"diamond blastp -d {db} -q {aa_sequences} --evalue {e_value} --max-target-seqs 1 --threads {threads} --outfmt 6 qseqid sseqid pident evalue -o {result_file.name}",
             shell=True
         )
 
-        blast_result = pd.read_csv(result_file, sep="\t", index_col=0)
+        blast_result = pd.read_csv(result_file.name,
+                                   sep="\t",
+                                   header=None,
+                                   names=columns,
+                                   index_col=0)
 
     return blast_result
 
@@ -85,7 +87,7 @@ def blast_on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
     if e_value is None:
         e_value = 1e-10
 
-    columns = "qseqid\ttoxinDB_sseqid\ttoxinDB_pident\ttoxinDB_evalue\n"
+    columns = ["qseqid", "toxinDB_sseqid", "toxinDB_pident", "toxinDB_evalue"]
 
     return _run_blast(filtered_clustered_aa_sequences, db_file, e_value, threads, columns)
 
@@ -126,6 +128,6 @@ def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
     if e_value is None:
         e_value = 1e-10
 
-    columns = "qseqid\tuniprot_sseqid\tuniprot_pident\tuniprot_evalue"
+    columns = ["qseqid", "uniprot_sseqid", "uniprot_pident", "uniprot_evalue"]
 
     return _run_blast(toxin_candidates, db_file, e_value, threads, columns)
