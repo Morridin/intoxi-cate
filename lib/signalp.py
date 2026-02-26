@@ -30,7 +30,7 @@ def signalp(clustered_peptides: Path) -> pd.DataFrame:
     trimmed_peptides_dir = _trim_peptides(clustered_peptides, 50, chunk_size)
 
     signalp_outputs = [
-        _run_signalp(file, trimmed_peptides_dir / file.stem, chunk_size, config.get("signalp_path")) for file in
+        _run_signalp(file, trimmed_peptides_dir / file.stem, chunk_size, config.get_path("signalp_path")) for file in
         trimmed_peptides_dir.iterdir()
     ]
 
