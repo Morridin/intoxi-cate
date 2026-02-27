@@ -33,13 +33,14 @@ def signalp(clustered_peptides: Path) -> pd.DataFrame:
     output_dir = trimmed_peptides_dir.with_name("signalp_outputs")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    signalp_runner = functools.partial(_run_signalp, output_dir=output_dir, chunk_size=chunk_size, signalp_path=config.get_path("signalp_path"))
+    signalp_runner = functools.partial(_run_signalp, output_dir=output_dir, chunk_size=chunk_size,
+                                       signalp_path=config.get_path("signalp_path"))
     with ProcessPoolExecutor() as executor:
         signalp_outputs = list(executor.map(signalp_runner, trimmed_peptides_dir.iterdir()))
 
     signalp_threshold = float(config.get("signalp_dvalue", 0.7))
 
-    return _filter_signalp_outputs(signalp_outputs, signalp_threshold)
+    return _filter_signalp_outputs(signalp_outputs, signalp_threshold, clustered_peptides)
 
 
 # ============================ Private functions ============================= #
@@ -93,17 +94,23 @@ def _run_signalp(input_sequences: Path, output_dir: Path, chunk_size: int, signa
     return Path(f"{output_prefix}_summary.signalp5")
 
 
-def _filter_signalp_outputs(files: Iterable[Path], threshold: float) -> pd.DataFrame:
+def _filter_signalp_outputs(files: Iterable[Path], threshold: float, clustered_peptides: Path) -> pd.DataFrame:
     """
     Filters the files given by `files` for those peptides whose probability of signal peptides is greater than `threshold`.
 
     :return: A DataFrame containing only those lines from the input files that passed the filter.
     """
     data = [pd.read_csv(file, sep="\t", index_col=0, header=None, comment="#",
-                        names=["ID", "signalp_prediction", "prob_signal", "prob_nosignal", "cutsite"]) for file in
+                        names=["ID", "Signal Peptide Predicted", "prob_signal", "prob_nosignal", "cutsite"]) for file in
             files]
+
+    seq_df = utils.fasta_to_dataframe(clustered_peptides)
 
     data = pd.concat(data).dropna()
     data = data[data.iloc[:, 1] > threshold]
+    data["Signal Peptide Predicted"] = data["Signal Peptide Predicted"] == "SP(Sec/SPI)"
+    data["cutsite"] = data["cutsite"].fillna("")
+    seq_df["cs-pos"] = data['cutsite'].apply(lambda x: int(x.split(" ")[2].split("-")[-1][:-1]) if "pos:" in x else -1)
+    data['Mature Peptide'] = seq_df.apply(lambda x: x['Sequence'][x['cs-pos']:] if x['cs-pos'] > 0 else None, axis=1)
 
     return data

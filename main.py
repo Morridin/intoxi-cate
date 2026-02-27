@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     toxins_blast_result = blast_on_toxins(clustered_peptides)
 
-    signalp_result = tmbed(clustered_peptides)
+    signalp_result = tmbed(clustered_peptides).set_index("ID")
 
     toxin_candidates = retrieve_candidate_toxins(clustered_peptides, toxins_blast_result, signalp_result)
 

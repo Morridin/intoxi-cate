@@ -139,12 +139,6 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
         df = df.merge(dfi, how="left", on="ID")
 
     if cys_pattern:
-        if not "Mature Peptide" in df.columns:
-            df["cutsite"] = df["cutsite"].fillna("")
-            df['cut_site_position'] = df['cutsite'].apply(
-                lambda x: int(x.split(" ")[2].split("-")[-1][:-1]) if "pos:" in x else -1)
-            df['Mature Peptide'] = df.apply(
-                lambda x: x['Sequence'][x['cut_site_position']:] if x['cut_site_position'] > 0 else None, axis=1)
         df['Cys_pattern'] = df['Mature Peptide'].apply(lambda x: utils.get_cys_pattern(x) if pd.notna(x) else None)
 
     if salmon_result is not None:
@@ -158,7 +152,7 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
 
     df = df.assign(Rating="")
 
-    mask = df["signalp_prediction"].notna()
+    mask = df["Signal Peptide Predicted"].fillna(False)
     df.loc[mask, 'Rating'] += "S"
     df.loc[~mask, 'Rating'] += "*"
 
@@ -180,5 +174,5 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
         mask = df["uniprot_sseqid"].notna() & df["toxinDB_sseqid"].isna()
         df.loc[mask, "Rating"] += "!"
 
-    df = df.drop(['cut_site_position', 'query name'], axis=1, errors='ignore')
+    df = df.drop(['query name'], axis=1, errors='ignore')
     df.drop_duplicates().to_csv(f"{output_file}", sep='\t', index=False)
