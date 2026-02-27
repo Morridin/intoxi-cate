@@ -61,5 +61,4 @@ def _run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, c
 
     subprocess.run(
         command,
-        capture_output=True,
     )
