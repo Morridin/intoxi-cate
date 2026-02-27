@@ -48,6 +48,6 @@ if __name__ == "__main__":
         f"#                              Pipeline complete                               #\n"
         f"# ============================================================================ #\n"
         f"The final pipeline output can be found under {
-        build_output_table(toxin_candidates, hmmer_result, toxins_blast_result, signalp_result, uniprot_blast_result, salmon_result)
+        build_output_table(toxin_candidates, hmmer_result, toxins_blast_result.reset_index(), signalp_result, uniprot_blast_result.reset_index(), salmon_result)
         }"
     )
