@@ -53,7 +53,8 @@ def _run_hmmer(fasta_file: Path, pfam_db: Path) -> Path:
 
     subprocess.run(
         f"hmmsearch --cut_ga --cpu {threads} --domtblout {domain_tbl_out} -o {log_out} {pfam_db} {fasta_file}",
-        shell=True
+        shell=True,
+        capture_output=True
     )
 
     return domain_tbl_out
