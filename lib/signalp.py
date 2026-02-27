@@ -7,7 +7,8 @@ The public API consists of filter_signalp_outputs.
 """
 import itertools
 import subprocess
-from functools import cache
+from concurrent.futures.process import ProcessPoolExecutor
+import functools
 from pathlib import Path
 from typing import Iterable
 
@@ -20,7 +21,6 @@ __all__ = ["signalp"]
 
 
 # ============================= Public functions ============================= #
-@cache
 def signalp(clustered_peptides: Path) -> pd.DataFrame:
     """
     Prepares the data for SignalP, runs SignalP and returns a filtered result.
@@ -32,10 +32,9 @@ def signalp(clustered_peptides: Path) -> pd.DataFrame:
     output_dir = trimmed_peptides_dir.with_name("signalp_outputs")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    signalp_outputs = [
-        _run_signalp(file, output_dir / file.stem, chunk_size, config.get_path("signalp_path")) for file in
-        trimmed_peptides_dir.iterdir()
-    ]
+    signalp_runner = functools.partial(_run_signalp, output_dir=output_dir, chunk_size=chunk_size, signalp_path=config.get_path("signalp_path"))
+    with ProcessPoolExecutor() as executor:
+        signalp_outputs = list(executor.map(signalp_runner, trimmed_peptides_dir.iterdir()))
 
     signalp_threshold = float(config.get("signalp_dvalue", 0.7))
 
@@ -66,12 +65,12 @@ def _trim_peptides(aa_sequences: Path, cut_off: int, chunk_size: int) -> Path:
     return output_dir
 
 
-def _run_signalp(input_sequences: Path, output_prefix: Path, chunk_size: int, signalp_path: Path | None) -> Path:
+def _run_signalp(input_sequences: Path, output_dir: Path, chunk_size: int, signalp_path: Path | None) -> Path:
     """
     Runs SignalP on the file `fasta_file` points to.
     Each file is expected to contain at most `chunk_size` sequences of eukaryotic origin.
     :param input_sequences: The path to the FASTA file containing the sequences on which SignalP shall be run.
-    :param output_prefix: A prefix to be prepended to the output file name. This may also include directories.
+    :param output_dir: The directory where the output file shall go.
     :param chunk_size: Describes how many sequences are expected in the input file and shall be processed per batch.
     :param signalp_path: The path to the SignalP binary, if SignalP cannot be called directly.
     :return: A TSV file containing the predicted secretory status for each input sequence.
@@ -81,8 +80,11 @@ def _run_signalp(input_sequences: Path, output_prefix: Path, chunk_size: int, si
     else:
         prefix = f"./{signalp_path}"
 
+    output_prefix = output_dir.resolve() / input_sequences.stem
+    input_sequences = input_sequences.resolve()
+
     subprocess.run(
-        f"./signalp -batch {chunk_size} -fasta {"../" * 3}{input_sequences} -org euk -format short -verbose -prefix {"../" * 3}{output_prefix}",
+        f"./signalp -batch {chunk_size} -fasta {input_sequences} -org euk -format short -verbose -prefix {output_prefix}",
         shell=True,
         cwd=prefix
     )
