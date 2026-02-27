@@ -72,6 +72,7 @@ def _run_wolfpsort(candidate_toxins: Path, wolf_p_sort_path: Path) -> pd.DataFra
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as output:
         subprocess.run(
             f"{wolf_p_sort_path} animal < {candidate_toxins} | {awk} > {output}",
+            shell=True
         )
         return pd.read_csv(output, sep="\t", index_col=0)
 

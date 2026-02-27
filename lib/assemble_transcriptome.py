@@ -46,7 +46,8 @@ def _trim_reads(r1: Path, r2: Path | None, threads: int) -> dict[str, Path]:
     subprocess.run(
         f"fastp -i {r1} -o {output["r1"]}{command_extension}"
         f"-w {threads} --cut_front --cut_front_window_size 1 --cut_tail --cut_tail_window_size 1 "
-        f"--cut_right --cut_right_window_size 4 --cut_mean_quality 15 --length_required 25"
+        f"--cut_right --cut_right_window_size 4 --cut_mean_quality 15 --length_required 25",
+        shell=True
     )
 
     return output
@@ -72,7 +73,8 @@ def _assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
     assembly = utils.global_output("trinity_out_dir/Trinity.fasta")
 
     subprocess.run(
-        f"Trinity --seqType {seq_type} {reads} --CPU {threads} --max_memory {memory} --output {assembly}"
+        f"Trinity --seqType {seq_type} {reads} --CPU {threads} --max_memory {memory} --output {assembly}",
+        shell=True
     )
 
     return assembly
@@ -124,7 +126,8 @@ def _run_salmon(transcriptome: Path, r1: Path, r2: Path | None, threads: int) ->
     index.mkdir(parents=True, exist_ok=True)
 
     subprocess.run(
-        f"salmon index -t {transcriptome} -i {index} -p {threads}"
+        f"salmon index -t {transcriptome} -i {index} -p {threads}",
+        shell=True
     )
 
     if r2 is not None:
@@ -133,7 +136,8 @@ def _run_salmon(transcriptome: Path, r1: Path, r2: Path | None, threads: int) ->
         reads = f"-r {r1}"
 
     subprocess.run(
-        f"salmon quant -i {index} -l A {reads} --validateMappings -o {quant_dir}"
+        f"salmon quant -i {index} -l A {reads} --validateMappings -o {quant_dir}",
+        shell=True
     )
 
     return quantification
