@@ -1,5 +1,5 @@
 from lib import config, assemble_transcriptome, cluster_peptides, hmmer, blast_on_toxins, blast_on_uniprot, \
-    signalp, retrieve_candidate_toxins, build_output_table, run_salmon
+    signalp, retrieve_candidate_toxins, build_output_table, run_salmon, tmbed
 
 if __name__ == "__main__":
     # --- Validate Config ----------------------------------------------------------
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     toxins_blast_result = blast_on_toxins(clustered_peptides)
 
-    signalp_result = signalp(clustered_peptides)
+    signalp_result = tmbed(clustered_peptides)
 
     toxin_candidates = retrieve_candidate_toxins(clustered_peptides, toxins_blast_result, signalp_result)
 

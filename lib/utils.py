@@ -91,7 +91,7 @@ def get_threads() -> int:
     return threads
 
 
-def _generate_tmbed_pred_df_rows_signal_only(file: Path) -> Generator[dict[str, str], None, None]:
+def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict[str, str], None, None]:
     with open(file) as f:
         seq_id = ""
         sequence = ""
@@ -110,7 +110,7 @@ def _generate_tmbed_pred_df_rows_signal_only(file: Path) -> Generator[dict[str, 
                     yield {"ID": seq_id, "Mature Peptide": sequence[diff:]}
 
 
-def _generate_tmbed_pred_df_rows_no_transmembranes(file: Path) -> Generator[dict[str, str], None, None]:
+def _generate_tmbed_pred_df_rows_no_transmembranes(file: Path | str) -> Generator[dict[str, str], None, None]:
     with open(file) as f:
         seq_id = ""
         markers = set("bBhH")
@@ -136,14 +136,14 @@ def _get_seq_id(line: str) -> str:
     return seq_id
 
 
-def parse_tmbed_predictions(file: Path, mode: Literal["signal", "non-membrane"]) -> pd.DataFrame:
+def parse_tmbed_predictions(file: Path | str, mode: Literal["signal", "non-membrane"]) -> pd.DataFrame:
     """
     Produces a DataFrame from a TMbed predictions file.
     :param file: The path to the predictions file.
     :param mode: Determines how the file contents are filtered while parsing.
     :return: A pandas DataFrame containing the IDs and mature peptide aa sequences of only those peptides that contain a signal peptide sequence.
     """
-    f: Callable[[Path], Generator[dict, None, None]]
+    f: Callable[[Path | str], Generator[dict, None, None]]
     match mode:
         case "signal":
             f = _generate_tmbed_pred_df_rows_signal_only

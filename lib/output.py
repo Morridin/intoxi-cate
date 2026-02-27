@@ -71,10 +71,10 @@ def _run_wolfpsort(candidate_toxins: Path, wolf_p_sort_path: Path) -> pd.DataFra
 
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as output:
         subprocess.run(
-            f"{wolf_p_sort_path} animal < {candidate_toxins} | {awk} > {output}",
+            f"{wolf_p_sort_path} animal < {candidate_toxins} | {awk} > {output.name}",
             shell=True
         )
-        return pd.read_csv(output, sep="\t", index_col=0)
+        return pd.read_csv(output.name, sep="\t", header=None, names=["ID", "WoLFPSort Localisation"])
 
 
 def _detect_repeated_aa(candidate_toxins: Path, threshold: int) -> pd.DataFrame:
@@ -102,7 +102,7 @@ def _detect_repeated_aa(candidate_toxins: Path, threshold: int) -> pd.DataFrame:
 
 def _find_repetition(size: int, seq: str, threshold: int) -> list:
     repetition = []
-    for cdl in range(0, size): # cdl is offset to left end of seq
+    for cdl in range(0, size):  # cdl is offset to left end of seq
         sub = [seq[i:i + size] for i in range(cdl, len(seq), size)]
         groups = itertools.groupby(sub)
         result = [(label, sum(1 for _ in group)) for label, group in groups]
@@ -139,12 +139,13 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
         df = df.merge(dfi, how="left", on="ID")
 
     if cys_pattern:
-        df["cutsite"] = df["cutsite"].fillna("")
-        df['cut_site_position'] = df['cutsite'].apply(
-            lambda x: int(x.split(" ")[2].split("-")[-1][:-1]) if "pos:" in x else -1)
-        df['mature_peptide'] = df.apply(
-            lambda x: x['Sequence'][x['cut_site_position']:] if x['cut_site_position'] > 0 else None, axis=1)
-        df['Cys_pattern'] = df['mature_peptide'].apply(lambda x: utils.get_cys_pattern(x) if pd.notna(x) else None)
+        if not "Mature Peptide" in df.columns:
+            df["cutsite"] = df["cutsite"].fillna("")
+            df['cut_site_position'] = df['cutsite'].apply(
+                lambda x: int(x.split(" ")[2].split("-")[-1][:-1]) if "pos:" in x else -1)
+            df['Mature Peptide'] = df.apply(
+                lambda x: x['Sequence'][x['cut_site_position']:] if x['cut_site_position'] > 0 else None, axis=1)
+        df['Cys_pattern'] = df['Mature Peptide'].apply(lambda x: utils.get_cys_pattern(x) if pd.notna(x) else None)
 
     if salmon_result is not None:
         df["contig"] = df['ID'].apply(lambda x: x.split("_ORF")[0])
@@ -180,5 +181,4 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
         df.loc[mask, "Rating"] += "!"
 
     df = df.drop(['cut_site_position', 'query name'], axis=1, errors='ignore')
-    df.rename(columns={'k': 'wolfpsort_prediction'}, inplace=True)
     df.drop_duplicates().to_csv(f"{output_file}", sep='\t', index=False)

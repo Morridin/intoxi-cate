@@ -24,6 +24,7 @@ __all__ = ["signalp"]
 def signalp(clustered_peptides: Path) -> pd.DataFrame:
     """
     Prepares the data for SignalP, runs SignalP and returns a filtered result.
+    :param clustered_peptides: The path to a FASTA file containing the sequences on which SignalP shall be run.
     :return: A DataFrame containing the SignalP result filtered for such peptides that can pass through cell membranes.
     """
     chunk_size = 5000
