@@ -1,5 +1,5 @@
-transcriptome: test-profundiconus/test.fasta
-output_dir: output/test-profundiconus/
+transcriptome: test-profundiconus/t2.fasta
+output_dir: output/test-profundiconus5
 basename: profundiconus
 memory: 18 # memory in GB, might change later
 threads: 16 # logic threads, not physical cores, for clarity
@@ -15,10 +15,12 @@ contamination_evalue: "1e-5"
 clustering_threshold: "0.99"
 maxlen: 45000
 signalp_dvalue: "0.7"
+signalp_path: software/signalp-5.0b/bin
 wolfPsort_path: software/WoLFPSort/bin/runWolfPsortSummary
+tmbed_model_path: software/tmbeddings
 quant: False
 TPMthreshold: "1000"
-wolfpsort: False
+wolfpsort: True
 swissprot: True
 swissprot_evalue: "1e-10"
 cys_pattern: True

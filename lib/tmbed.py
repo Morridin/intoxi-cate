@@ -45,7 +45,7 @@ def _run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, c
     :param threads: The number of CPU threads to use if TMbed does not run on the GPU.
     :param model_dir: The directory where TMbed shall store its models for later reuse.
     """
-    command = ["tmbed", "predict" "-f", clustered_peptides, "-p", output_file_name, "-t", f"{threads}"]
+    command = ["tmbed", "predict", "-f", clustered_peptides, "-p", output_file_name, "-t", f"{threads}"]
     if use_gpu:
         command.append("--use-gpu")
     else:
@@ -61,5 +61,5 @@ def _run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, c
 
     subprocess.run(
         command,
-        shell=True
+        capture_output=True,
     )
