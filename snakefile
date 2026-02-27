@@ -423,7 +423,7 @@ rule parse_hmmsearch_output:
         filtered_table = global_output(config['basename'] + ".domtblout.tsv")
     run:
         import pandas
-        df_domtblout = pandas.read_csv(str(input.domtblout), comment="#", delim_whitespace=True, usecols = [0,1,2,3,4] , names=["target name","accession_t","tlen","query name","accession_Q"])
+        df_domtblout = pandas.read_csv(str(input.domtblout), comment="#", sep="\\s+", usecols = [0,1,2,3,4] , names=["target name","accession_t","tlen","query name","accession_Q"])
         aggregated_domains = df_domtblout.groupby('target name')['query name'].apply(list).reset_index()
         aggregated_domains['pfam domains'] = aggregated_domains['query name'].apply(lambda x: "; ".join(list(set(x))))
         aggregated_domains.to_csv(str(output.filtered_table), sep="\t", index=False)
