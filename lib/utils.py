@@ -107,7 +107,12 @@ def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict
             if index == 2:
                 diff = len(line) - len(line.lstrip("S"))
                 if diff > 0:
-                    yield {"ID": seq_id, "Signal Peptide Predicted": True, "Mature Peptide": sequence[diff:]}
+                    yield {
+                        "ID": seq_id,
+                        "Signal Peptide Predicted": True,
+                        "Raw Prediction": line,
+                        "Mature Peptide": sequence[diff:]
+                    }
 
 
 def _generate_tmbed_pred_df_rows_no_transmembranes(file: Path | str) -> Generator[dict[str, str], None, None]:

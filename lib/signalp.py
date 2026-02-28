@@ -101,16 +101,16 @@ def _filter_signalp_outputs(files: Iterable[Path], threshold: float, clustered_p
     :return: A DataFrame containing only those lines from the input files that passed the filter.
     """
     data = [pd.read_csv(file, sep="\t", index_col=0, header=None, comment="#",
-                        names=["ID", "Signal Peptide Predicted", "prob_signal", "prob_nosignal", "cutsite"]) for file in
+                        names=["ID", "Signal Peptide Predicted", "prob_signal", "prob_nosignal", "Raw Prediction"]) for file in
             files]
 
     seq_df = utils.fasta_to_dataframe(clustered_peptides)
 
     data = pd.concat(data).dropna()
     data = data[data.iloc[:, 1] > threshold]
-    data["Signal Peptide Predicted"] = data["Signal Peptide Predicted"] == "SP(Sec/SPI)"
-    data["cutsite"] = data["cutsite"].fillna("")
-    seq_df["cs-pos"] = data['cutsite'].apply(lambda x: int(x.split(" ")[2].split("-")[-1][:-1]) if "pos:" in x else -1)
+    data["Signal Peptide Predicted"] = (data["Signal Peptide Predicted"] == "SP(Sec/SPI)").astype(bool)
+    data["Raw Prediction"] = data["Raw Prediction"].fillna("")
+    seq_df["cs-pos"] = data["Raw Prediction"].apply(lambda x: int(x.split(" ")[2].split("-")[-1][:-1]) if "pos:" in x else -1)
     data['Mature Peptide'] = seq_df.apply(lambda x: x['Sequence'][x['cs-pos']:] if x['cs-pos'] > 0 else None, axis=1)
 
     return data

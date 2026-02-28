@@ -152,7 +152,7 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
 
     df = df.assign(Rating="")
 
-    mask = df["Signal Peptide Predicted"].fillna(False)
+    mask = df["Signal Peptide Predicted"].fillna(False).astype(bool)
     df.loc[mask, 'Rating'] += "S"
     df.loc[~mask, 'Rating'] += "*"
 
