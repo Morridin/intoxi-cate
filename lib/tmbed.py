@@ -5,16 +5,17 @@ sequences that contain signal peptides and are thus potentially toxins.
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Generator, Literal, Callable
 
 import pandas as pd
 
 from lib import config, utils
 
-__all__ = ["tmbed"]
+__all__ = ["detect_by_structure", "run", "parse_predictions"]
 
 
 # ============================= Public functions ============================= #
-def tmbed(clustered_peptides: Path, use_gpu: bool = True, cpu_fallback: bool = False) -> pd.DataFrame:
+def detect_by_structure(clustered_peptides: Path, use_gpu: bool = True, cpu_fallback: bool = False) -> pd.DataFrame:
     """
     This function runs tmbed, collects the results and returns them as versatile DataFrame.
     :param clustered_peptides: The path to a FASTA file containing the amino acid sequences on which TMbed shall run.
@@ -28,14 +29,13 @@ def tmbed(clustered_peptides: Path, use_gpu: bool = True, cpu_fallback: bool = F
     threads = utils.get_threads()
 
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
-        _run_tmbed(clustered_peptides, output_file.name, use_gpu, cpu_fallback, threads, model_dir)
+        run(clustered_peptides, output_file.name, use_gpu, cpu_fallback, threads, model_dir)
 
-        return utils.parse_tmbed_predictions(output_file.name, "signal")
+        return utils.parse_tmbed_predictions(output_file.name, _generate_tmbed_pred_df_rows_signal_only)
 
 
-# ============================ Private functions ============================= #
-def _run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fallback: bool, threads: int,
-               model_dir: Path | None) -> None:
+def run(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fallback: bool, threads: int,
+        model_dir: Path | None) -> None:
     """
     The actual runner for TMbed. Assembles the command from the given parameters and runs TMbed.
     :param clustered_peptides: A Path pointing to a FASTA file.
@@ -62,3 +62,38 @@ def _run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, c
     subprocess.run(
         command,
     )
+
+
+def parse_predictions(file: Path | str, f: Callable[[Path | str], Generator[dict, None, None]]) -> pd.DataFrame:
+    """
+    Produces a DataFrame from a TMbed predictions file.
+    :param file: The path to the predictions file.
+    :param f: Determines how the file contents are filtered while parsing.
+    :return: A pandas DataFrame containing the IDs and mature peptide aa sequences of only those peptides that contain a signal peptide sequence.
+    """
+    return pd.DataFrame(f(file))
+
+
+# ============================ Private functions ============================= #
+def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict[str, str], None, None]:
+    with open(file) as f:
+        seq_id = ""
+        sequence = ""
+
+        for index, line in enumerate(f):
+            index %= 3
+            if not line:
+                break
+            if index == 0:
+                seq_id = utils.get_sequence_id(line)
+            if index == 1:
+                sequence = line.strip()
+            if index == 2:
+                diff = len(line) - len(line.lstrip("S"))
+                if diff > 0:
+                    yield {
+                        "ID": seq_id,
+                        "Signal Peptide Predicted": True,
+                        "Raw Prediction": line,
+                        "Mature Peptide": sequence[diff:]
+                    }

@@ -17,11 +17,11 @@ from .blast import *
 from .signalp import *
 from .toxins_peptides import *
 from .output import *
-from .tmbed import *
+from .tmbed import detect_by_structure
 
 # Set parts of lib
-__all__ = ["config", "utils"]
+__all__ = ["config", "utils", "tmbed"]
 
 # Add the different modules
 __all__ += ["assemble_transcriptome", "run_salmon", "cluster_peptides", "hmmer", "blast_on_toxins", "blast_on_uniprot",
-            "signalp", "retrieve_candidate_toxins", "build_output_table", "tmbed"]
+            "signalp", "retrieve_candidate_toxins", "build_output_table", "detect_by_structure"]

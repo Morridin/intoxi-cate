@@ -4,14 +4,14 @@ Here be all the miscellaneous utilities that fit nowhere else.
 import os
 from functools import cache
 from pathlib import Path
-from typing import Generator, Literal, Callable
+from typing import Generator
 
 import pandas as pd
 from Bio import SeqIO
 
 from lib import config
 
-__all__ = ["fasta_to_dataframe", "global_output", "get_cys_pattern", "get_threads", "parse_tmbed_predictions"]
+__all__ = ["fasta_to_dataframe", "global_output", "get_cys_pattern", "get_threads"]
 
 
 def _generate_fasta_records(fasta_path: Path, as_sequence: bool) -> Generator[dict[str, str], None, None] | Generator[
@@ -90,48 +90,12 @@ def get_threads() -> int:
 
     return threads
 
-
-def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict[str, str], None, None]:
-    with open(file) as f:
-        seq_id = ""
-        sequence = ""
-
-        for index, line in enumerate(f):
-            index %= 3
-            if index == 0:
-                if not line:
-                    break
-                seq_id = _get_seq_id(line)
-            if index == 1:
-                sequence = line.strip()
-            if index == 2:
-                diff = len(line) - len(line.lstrip("S"))
-                if diff > 0:
-                    yield {
-                        "ID": seq_id,
-                        "Signal Peptide Predicted": True,
-                        "Raw Prediction": line,
-                        "Mature Peptide": sequence[diff:]
-                    }
-
-
-def _generate_tmbed_pred_df_rows_no_transmembranes(file: Path | str) -> Generator[dict[str, str], None, None]:
-    with open(file) as f:
-        seq_id = ""
-        markers = set("bBhH")
-
-        for index, line in enumerate(f):
-            index %= 3
-            if index == 0:
-                if not line:
-                    break
-                seq_id = _get_seq_id(line)
-            if index == 2:
-                if markers.isdisjoint(line):
-                    yield {"ID": seq_id}
-
-
-def _get_seq_id(line: str) -> str:
+def get_sequence_id(line: str) -> str:
+    """
+    Retrieves the Sequence ID from a FASTA/TMbed prediction file line.
+    :param line: A line starting with a caret (>) and the sequence ID following.
+    :return: The sequence ID with nothing else included.
+    """
     if not line.startswith(">"):
         raise ValueError("Malformatted prediction file, expected '>' at the beginning of ID line.")
     seq_id, _, _ = line.lstrip(">").partition(" ")
@@ -139,22 +103,3 @@ def _get_seq_id(line: str) -> str:
     if not seq_id:
         raise ValueError("Malformatted prediction file, expected '>' at the end of ID line.")
     return seq_id
-
-
-def parse_tmbed_predictions(file: Path | str, mode: Literal["signal", "non-membrane"]) -> pd.DataFrame:
-    """
-    Produces a DataFrame from a TMbed predictions file.
-    :param file: The path to the predictions file.
-    :param mode: Determines how the file contents are filtered while parsing.
-    :return: A pandas DataFrame containing the IDs and mature peptide aa sequences of only those peptides that contain a signal peptide sequence.
-    """
-    f: Callable[[Path | str], Generator[dict, None, None]]
-    match mode:
-        case "signal":
-            f = _generate_tmbed_pred_df_rows_signal_only
-        case "non-membrane":
-            f = _generate_tmbed_pred_df_rows_no_transmembranes
-        case _:
-            raise ValueError(f"Unknown mode: {mode}")
-
-    return pd.DataFrame(f(file))
