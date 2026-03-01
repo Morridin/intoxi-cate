@@ -5,7 +5,7 @@ sequences that contain signal peptides and are thus potentially toxins.
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Generator, Literal, Callable
+from typing import Generator, Callable
 
 import pandas as pd
 
@@ -31,7 +31,7 @@ def detect_by_structure(clustered_peptides: Path, use_gpu: bool = True, cpu_fall
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
         run(clustered_peptides, output_file.name, use_gpu, cpu_fallback, threads, model_dir)
 
-        return utils.parse_tmbed_predictions(output_file.name, _generate_tmbed_pred_df_rows_signal_only)
+        return parse_predictions(output_file.name, _generate_tmbed_pred_df_rows_signal_only)
 
 
 def run(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fallback: bool, threads: int,

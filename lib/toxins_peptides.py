@@ -9,9 +9,7 @@ retrieve_orfs_with_blast_without_signalp <- retrieve_candidate_toxins.
 
 Its public API consists of the outputs of retrieve_candidate_toxins and filter_signalp_outputs.
 """
-import subprocess
 import tempfile
-from functools import cache
 from pathlib import Path
 from typing import Generator
 
@@ -38,7 +36,7 @@ def retrieve_candidate_toxins(clustered_peptides: Path, toxins_blast_result: pd.
 
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
         tmbed.run(secreted_peptides, output_file.name, True, False, utils.get_threads(), config.get_path("tmbed_model_path"))
-        tmbed_result = tmbed.parse_predictions(output_file.name, _generate_tmbed_pred_df_rows_no_transmembranes)
+        tmbed_result = tmbed.parse_predictions(output_file.name, _generate_non_transmembrane_rows).set_index("ID")
 
     output_file = utils.global_output(config.get("basename") + "_candidate_toxins.fasta")
 
@@ -87,7 +85,7 @@ def _filter_fasta_file(fasta_file: Path, filter_map: pd.DataFrame) -> pd.DataFra
     return records.drop(records.join(filter_map, how="left_anti", rsuffix="_filter").index)
 
 
-def _generate_tmbed_pred_df_rows_no_transmembranes(file: Path | str) -> Generator[dict[str, str], None, None]:
+def _generate_non_transmembrane_rows(file: Path | str) -> Generator[dict[str, str], None, None]:
     with open(file) as f:
         seq_id = ""
         markers = set("bBhH")
