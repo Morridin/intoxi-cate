@@ -103,6 +103,29 @@ def assemble_transcriptome() -> Path:
 
 
 @cache
+def get_transcriptome_db(transcriptome_fasta: Path, *, mmseqs_path: Path) -> Path:
+    """
+    Generates the MMSeqs2 DB file out of a transcriptome FASTA file.
+    If it was already generated this program run, just return the path to the database file instead.
+    :param transcriptome_fasta: The path to the FASTA file that shall be translated to MMSeqs format.
+    :return: The path to the MMSeqs database.
+    """
+    db_path = utils.global_output("mmseqs/" + config.get("basename") + ".db")
+    command = [
+        f"{mmseqs_path}/mmseqs", "createdb",
+        transcriptome_fasta,  # Input file
+        db_path,              # Output file
+        "--dbtype", 0,        # Auto-detect if FASTA contains DNA/RNA or AA sequences (the latter is interesting in case of proteome given)
+        "--shuffle", 1,    # Shuffle for higher resistance against statistical side effects
+        "--createdb-mode", 0, # Copy data into DB. This is the best choice as it doesn't limit how the input file needs to look.
+        "--threads", utils.get_threads(),
+    ]
+
+    subprocess.run(command)
+    return db_path
+
+
+@cache
 def run_salmon() -> Path:
     threads = utils.get_threads()
     transcriptome = assemble_transcriptome()
