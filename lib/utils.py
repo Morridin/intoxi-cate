@@ -2,6 +2,7 @@
 Here be all the miscellaneous utilities that fit nowhere else.
 """
 import os
+import subprocess
 from functools import cache
 from pathlib import Path
 from typing import Generator
@@ -103,3 +104,12 @@ def get_sequence_id(line: str) -> str:
     if not seq_id:
         raise ValueError("Malformatted prediction file, expected '>' at the end of ID line.")
     return seq_id
+
+
+def ensure_mmseqs2(default: Path) -> Path:
+    path = config.get_path("mmseqs_path") or default
+    try:
+        subprocess.run([f"{path}/mmseqs", "version"])
+    except FileNotFoundError:
+        raise FileNotFoundError("Could not find MMSeqs binary!")
+    return path
