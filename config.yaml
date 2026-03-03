@@ -1,5 +1,5 @@
 transcriptome: test-profundiconus/t2.fasta
-output_dir: output/test-profundiconus5
+output_dir: output/test-profundiconus6
 basename: profundiconus
 memory: 18 # memory in GB, might change later
 threads: 16 # logic threads, not physical cores, for clarity
@@ -24,3 +24,4 @@ wolfpsort: True
 swissprot: True
 swissprot_evalue: "1e-10"
 cys_pattern: True
+mmseqs_path: software/mmseqs/bin
