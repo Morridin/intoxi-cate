@@ -30,17 +30,17 @@ if __name__ == "__main__":
 
     toxin_candidates = retrieve_candidate_toxins(clustered_peptides, toxins_blast_result, signalp_result)
 
-    if quant:
-        salmon_result = run_salmon()
-    else:
-        salmon_result = None
-
     hmmer_result = hmmer(toxin_candidates)
 
     if config.get("swissprot", False):
         uniprot_blast_result = blast_on_uniprot(toxin_candidates)
     else:
         uniprot_blast_result = None
+
+    if quant:
+        salmon_result = run_salmon()
+    else:
+        salmon_result = None
 
     print(
         f"\n\n"
