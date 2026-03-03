@@ -109,7 +109,7 @@ def get_sequence_id(line: str) -> str:
 def ensure_mmseqs2(default: Path) -> Path:
     path = config.get_path("mmseqs_path") or default
     try:
-        subprocess.run([f"{path}/mmseqs", "version"])
+        subprocess.run([f"{path}/mmseqs", "version"], capture_output=True)
     except FileNotFoundError:
         raise FileNotFoundError("Could not find MMSeqs binary!")
     return path
