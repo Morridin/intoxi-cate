@@ -83,8 +83,10 @@ def _filter_contaminants(blast_result: Path, contigs: Path) -> Path:
 
 def _detect_orfs(nucleotide_sequences: Path, *, min_len=99, max_len=30_000_000, threads, mmseqs_path: Path) -> Path:
     """
-    finds complete orfs within the input nucleotide sequences.
-    DeTox were testing this with orfipy instead of orffinder to leverage multithreading
+    Finds complete orfs within the input nucleotide sequences.
+    Finds also such orfs with open 3' or 5' ends.
+    Uses MMSeqs to do this.
+    The result is also directly filtered from any sequence containing an unknown amino acid marked by X.
     :param nucleotide_sequences: The path leading to a fasta file holding transcriptome data/blastn results.
     :param min_len: minimum length in nucleotides an orf needs to have to be considered
     :param max_len: maximum length in nucleotides an orf needs to have to be considered
@@ -131,6 +133,8 @@ def _detect_orfs(nucleotide_sequences: Path, *, min_len=99, max_len=30_000_000, 
 
         with open(orfs_fasta, "w") as result:
             for seq in SeqIO.parse(temp.name, "fasta"):
+                if "X" in seq.seq:
+                    continue
                 seq_id = target[target["id"] == seq.id]["seq_id"].iloc[0]
                 if seq.id == previous_id:
                     counter += 1
@@ -163,7 +167,7 @@ def _drop_x(orfs_db: Path) -> Path:
 
 def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memory: int, threads: int, *, mmseqs_path: Path) -> Path:
     """
-    runs cd-hit on predicted peptide to remove excess redundancy
+    Runs MMSeqs LinClust on predicted peptides to remove excess redundancy
     :param aa_sequences: The path to an faa file holding nucleotide sequences.
     :param clustering_threshold: The sequence identity threshold that guides cluster generation.
         Sequences that are sufficiently similar to pass this threshold are clustered together.
@@ -172,25 +176,28 @@ def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memor
     :param mmseqs_path: The path to the folder containing the MMSeqs binary
     :return: The path to the faa file that holds the clustered nucleotide sequences/the sequences representing the clusters.
     """
-    clustered_aa_sequences = utils.global_output(config.get("basename") + ".clustered.faa")
+    output_prefix = utils.global_output(config.get('basename')) # MMSeqs adds file endings on their own.
     tmp_dir = utils.global_output("mmseqs")
 
     command = [
         f"{mmseqs_path}/mmseqs", "easy-linclust",
         aa_sequences,  # Input FASTA
-        clustered_aa_sequences, # "Cluster Prefix"
+        output_prefix, # Prefix that is prepended to all the output files (which are 3:
+            # 1 FASTA with all seq ids (..._all_seqs.fasta),
+            # 1 TSV mapping each seq ID to the ID of the cluster representative (..._cluster.tsv),
+            # 1 FASTA containing only the cluster representatives (..._rep_seq.fasta))
         tmp_dir,
         "--min-seq-id", f"{clustering_threshold}",
         "--threads", f"{threads}",
         "--cluster-mode", "2", # Simulates CD-Hit's approach to clustering.
-        "--dbtype", "1" # As we only expect AA sequences to arrive in this function, we can guide this a little bit.
+        "--dbtype", "1", # As we only expect AA sequences to arrive in this function, we can guide this a little bit.
         "--createdb-mode", "0", # As the input may contain multi-line sequences, this is safer (also, using more disk space is cheaper than rerunning the pipeline)
         "--remove-tmp-files", "false", # Helps debugging. Or just with understanding what the pipeline does.
     ] # The -d 40 flag is just for display purposes and thus not relevant for us.
 
     subprocess.run(command)
 
-    return clustered_aa_sequences
+    return output_prefix.with_name(output_prefix.name + "_rep_seq.fasta")
 
 
 @cache
@@ -201,12 +208,7 @@ def cluster_peptides(transcriptome: Path):
     :return: A FASTA file containing amino acid sequences of the representatives of the different peptide clusters.
     """
     threads = utils.get_threads()
-    mmseqs_path = config.get_path("mmseqs_path") or Path("software/mmseqs/bin")
-    try:
-        subprocess.run([f"{mmseqs_path}/mmseqs", "version"])
-    except FileNotFoundError:
-        raise FileNotFoundError("Could not find MMSeqs binary!")
-
+    mmseqs_path = utils.ensure_mmseqs2(Path("software/mmseqs/bin"))
 
     aa_sequences = config.get("proteome_fasta")
     if aa_sequences is None:
@@ -233,7 +235,7 @@ def cluster_peptides(transcriptome: Path):
 
         aa_sequences = _detect_orfs(nucleotide_sequences, threads=threads, mmseqs_path=mmseqs_path, **frame_size)
     else:
-        aa_sequences = get_transcriptome_db(aa_sequences)
+        aa_sequences = _drop_x(aa_sequences)
 
-    return _cluster_peptides(_drop_x(aa_sequences), config.get("clustering_threshold"),
+    return _cluster_peptides(aa_sequences, config.get("clustering_threshold"),
                              config.get("memory"), threads, mmseqs_path=mmseqs_path)
