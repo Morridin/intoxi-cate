@@ -108,17 +108,19 @@ def get_transcriptome_db(transcriptome_fasta: Path, *, mmseqs_path: Path) -> Pat
     Generates the MMSeqs2 DB file out of a transcriptome FASTA file.
     If it was already generated this program run, just return the path to the database file instead.
     :param transcriptome_fasta: The path to the FASTA file that shall be translated to MMSeqs format.
+    :param mmseqs_path: The path to the folder containing the MMSeqs binary
     :return: The path to the MMSeqs database.
     """
     db_path = utils.global_output("mmseqs/" + config.get("basename") + ".db")
+    db_path.resolve().parent.mkdir(parents=True, exist_ok=True)
     command = [
         f"{mmseqs_path}/mmseqs", "createdb",
         transcriptome_fasta,  # Input file
         db_path,              # Output file
-        "--dbtype", 0,        # Auto-detect if FASTA contains DNA/RNA or AA sequences (the latter is interesting in case of proteome given)
-        "--shuffle", 1,    # Shuffle for higher resistance against statistical side effects
-        "--createdb-mode", 0, # Copy data into DB. This is the best choice as it doesn't limit how the input file needs to look.
-        "--threads", utils.get_threads(),
+        "--dbtype", "0",        # Auto-detect if FASTA contains DNA/RNA or AA sequences (the latter is interesting in case of proteome given)
+        "--shuffle", "1",    # Shuffle for higher resistance against statistical side effects
+        "--createdb-mode", "0", # Copy data into DB. This is the best choice as it doesn't limit how the input file needs to look.
+        "--threads", f"{utils.get_threads()}",
     ]
 
     subprocess.run(command)
