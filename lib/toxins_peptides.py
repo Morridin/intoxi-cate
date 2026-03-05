@@ -17,7 +17,6 @@ import pandas as pd
 from Bio import SeqIO
 
 from lib import config, utils, tmbed
-from lib.utils import global_output
 
 __all__ = ["retrieve_candidate_toxins"]
 
@@ -57,8 +56,8 @@ def _extract_secreted_peptides(signalp_result: pd.DataFrame, clustered_peptides:
     :param clustered_peptides: The path to a FASTA file containing amino acid sequences (e.g. the output of `cluster_peptides`).
     :return: A tuple of two file paths with the first one pointing to the secreted peptides and the second one pointing to the non-secreted peptides.
     """
-    secreted_peptides = global_output(config.get("basename") + "_secreted_peptides.fasta")
-    non_secreted_peptides = global_output(config.get("basename") + "_non_secreted_peptides.fasta")
+    secreted_peptides = utils.global_output(config.get("basename") + "_secreted_peptides.fasta")
+    non_secreted_peptides = utils.global_output(config.get("basename") + "_non_secreted_peptides.fasta")
 
     with open(non_secreted_peptides, "w") as n_outfile, open(secreted_peptides, "w") as out_file:
         for seq in SeqIO.parse(clustered_peptides, "fasta"):
