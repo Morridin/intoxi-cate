@@ -1,5 +1,0 @@
-name: detox-pre
-channels:
-  - conda-forge
-dependencies:
-  - mamba

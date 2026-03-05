@@ -1,0 +1,21 @@
+# To prepare and run the environment: `conda env create -f intoxicate.yaml && conda activate intoxi-cate
+name: intoxi-cate
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - salmon
+  - fastp
+  - trinity
+  - hmmer
+  - mmseqs2
+  - python == 3.12
+  - biopython
+  - httpx == 0.28.1
+  - pandas
+  - pip
+  - pyyaml
+  - pytorch
+  - transformers == 4.34.0
+  - pip:
+    - git+https://github.com/BernhoferM/TMbed.git
