@@ -15,12 +15,12 @@ __all__ = ["detect_by_structure", "run", "parse_predictions"]
 
 
 # ============================= Public functions ============================= #
-def detect_by_structure(clustered_peptides: Path, use_gpu: bool = True, cpu_fallback: bool = False) -> pd.DataFrame:
+def detect_by_structure(clustered_peptides: Path, use_gpu: bool = True, cpu_fallback: bool = True) -> pd.DataFrame:
     """
     This function runs tmbed, collects the results and returns them as versatile DataFrame.
     :param clustered_peptides: The path to a FASTA file containing the amino acid sequences on which TMbed shall run.
     :param use_gpu: If you don't want to utilise the GPU to speed up the prediction process, set to False.
-    :param cpu_fallback: If you want to fallback on the CPU instead of having the pipeline fail, set to True.
+    :param cpu_fallback: If you want the step fail instead of falling back to the CPU, set to False.
     :return: A DataFrame containing the following information: an ID column holding the sequence ID,
     the sequence itself in a second column, and the mature peptide (the peptide without the signal peptide) in a
     third column. The DataFrame only contains such sequences that TMbed could identify as featuring a signal peptide.
