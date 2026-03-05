@@ -1,3 +1,0 @@
-AttributeError in file /home/labgen/github/DeTox/snakefile, line 178:
-'Checkpoint' object has no attribute 'output'
-  File "/home/labgen/github/DeTox/snakefile", line 178, in <module>

@@ -1,3 +1,0 @@
-AttributeError in file /home/labgen/github/DeTox/snakefile, line 113:
-'RuleProxy' object has no attribute 'out'
-  File "/home/labgen/github/DeTox/snakefile", line 113, in <module>

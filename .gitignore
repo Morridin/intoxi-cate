@@ -1,9 +1,5 @@
 test/
-.snakemake/
-.vscode/
-test_run/
 software/
 .idea/
-dataURLs.json
-installBiocDataPackage.sh
 output/
+fixtures/
