@@ -14,7 +14,6 @@ import tempfile
 from functools import cache
 from pathlib import Path
 
-import httpx
 import pandas as pd
 
 from lib import config, utils
@@ -58,7 +57,7 @@ def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, colum
             "-s", "5.7", # In preparation for later adjustments
             "-e", f"{e_value}", # Replaces --evalue
             "--max-accept", "1", # Replaces --max-target-seqs
-            "--format-output", "\"query,target,pident,evalue\"", # replaces the --outfmt param (output is already in tabular format by default)
+            "--format-output", "query,target,pident,evalue", # replaces the --outfmt param (output is already in tabular format by default)
             "--threads", f"{threads}",
         ]
         subprocess.run(command)
