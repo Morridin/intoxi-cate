@@ -21,57 +21,7 @@ from lib import config, utils
 __all__ = ["blast_on_toxins", "blast_on_uniprot"]
 
 
-# ======================== Block 0: Common Functions ========================= #
-def _build_blast_db(source_file: Path, target_file: Path):
-    """
-    Builds a BLAST database using diamond.
-    There is no return value as the target_path parameter would else be.
-    :param source_file: The path to the (usually) FASTA file from which diamond shall build the database.
-    :param target_file: The path to the file where diamond shall store the newly created DB.
-    """
-    subprocess.run(
-        f"diamond makedb --in {source_file} --db {target_file}",
-        shell=True
-    )
-
-
-def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, columns: list[str], *, mmseqs_path: Path) -> pd.DataFrame:
-    """
-    Runs BLASTp against the FASTA file given in `aa_sequences` on the database provided in `db`.
-    :param aa_sequences: The path to a FASTA file containing the query sequences for the BLASTp run.
-    :param db: The database on which BLASTp is to operate
-    :param e_value: The e_value for BLASTp
-    :param threads: The number of threads BLASTp shall use
-    :param columns: The column names for the returned DataFrame, as list of strings.
-    :return: A pandas DataFrame containing the BLASTp results.
-    """
-    blast_result: pd.DataFrame
-
-    with tempfile.NamedTemporaryFile(suffix=".m8", delete_on_close=False) as result_file:
-        command = [
-            f"{mmseqs_path}/mmseqs", "easy-search",
-            aa_sequences,
-            db,
-            result_file.name,
-            utils.global_output("mmseqs"),
-            "-s", "5.7", # In preparation for later adjustments
-            "-e", f"{e_value}", # Replaces --evalue
-            "--max-accept", "1", # Replaces --max-target-seqs
-            "--format-output", "query,target,pident,evalue", # replaces the --outfmt param (output is already in tabular format by default)
-            "--threads", f"{threads}",
-        ]
-        subprocess.run(command)
-
-        blast_result = pd.read_csv(result_file.name,
-                                   sep="\t",
-                                   header=None,
-                                   names=columns,
-                                   index_col=0)
-
-    return blast_result
-
-
-# ============================= Block 1: Toxins ============================== #
+# ============================= Public functions ============================= #
 @cache
 def blast_on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
     """
@@ -97,29 +47,6 @@ def blast_on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
     return _run_blast(filtered_clustered_aa_sequences, db_file, e_value, threads, columns, mmseqs_path=mmseqs_path)
 
 
-# ============================= Block 2: UniProt ============================= #
-@cache
-def _download_uniprot(*, mmseqs_path: Path) -> Path:
-    """
-    Downloads the latest release of the UniProt database
-    """
-    mmseqs_dir = utils.global_output("mmseqs")
-    mmseqs_dir.mkdir(parents=True, exist_ok=True)
-
-    db_file = mmseqs_dir / "uniprot.db"
-
-    command = [
-        f"{mmseqs_path}/mmseqs", "databases",
-	    "UniProtKB/Swiss-Prot",
-	    db_file,
-        mmseqs_dir,
-	    "--threads", "16"
-    ]
-    subprocess.run(command)
-
-    return db_file
-
-
 @cache
 def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
     """
@@ -137,3 +64,63 @@ def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
     columns = ["qseqid", "uniprot_sseqid", "uniprot_pident", "uniprot_evalue"]
 
     return _run_blast(toxin_candidates, db_file, e_value, threads, columns, mmseqs_path=mmseqs_path)
+
+
+# ============================ Private functions ============================= #
+def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, columns: list[str], *,
+               mmseqs_path: Path) -> pd.DataFrame:
+    """
+    Runs BLASTp against the FASTA file given in `aa_sequences` on the database provided in `db`.
+    :param aa_sequences: The path to a FASTA file containing the query sequences for the BLASTp run.
+    :param db: The database on which BLASTp is to operate
+    :param e_value: The e_value for BLASTp
+    :param threads: The number of threads BLASTp shall use
+    :param columns: The column names for the returned DataFrame, as list of strings.
+    :return: A pandas DataFrame containing the BLASTp results.
+    """
+    blast_result: pd.DataFrame
+
+    with tempfile.NamedTemporaryFile(suffix=".m8", delete_on_close=False) as result_file:
+        command = [
+            f"{mmseqs_path}/mmseqs", "easy-search",
+            aa_sequences,
+            db,
+            result_file.name,
+            utils.global_output("mmseqs"),
+            "-s", "5.7",  # In preparation for later adjustments
+            "-e", f"{e_value}",  # Replaces --evalue
+            "--max-accept", "1",  # Replaces --max-target-seqs
+            "--format-output", "query,target,pident,evalue",
+            # replaces the --outfmt param (output is already in tabular format by default)
+            "--threads", f"{threads}",
+        ]
+        subprocess.run(command)
+
+        blast_result = pd.read_csv(result_file.name,
+                                   sep="\t",
+                                   header=None,
+                                   names=columns,
+                                   index_col=0)
+    return blast_result
+
+
+@cache
+def _download_uniprot(*, mmseqs_path: Path) -> Path:
+    """
+    Downloads the latest release of the UniProt database
+    """
+    mmseqs_dir = utils.global_output("mmseqs")
+    mmseqs_dir.mkdir(parents=True, exist_ok=True)
+
+    db_file = mmseqs_dir / "uniprot.db"
+
+    command = [
+        f"{mmseqs_path}/mmseqs", "databases",
+        "UniProtKB/Swiss-Prot",
+        db_file,
+        mmseqs_dir,
+        "--threads", "16"
+    ]
+    subprocess.run(command)
+
+    return db_file
