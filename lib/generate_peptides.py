@@ -165,7 +165,8 @@ def _drop_x(orfs_db: Path) -> Path:
     return drop_sequence
 
 
-def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memory: int, threads: int, *, mmseqs_path: Path) -> Path:
+def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memory: int, threads: int, *,
+                      mmseqs_path: Path) -> Path:
     """
     Runs MMSeqs LinClust on predicted peptides to remove excess redundancy
     :param aa_sequences: The path to an faa file holding nucleotide sequences.
@@ -176,24 +177,25 @@ def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memor
     :param mmseqs_path: The path to the folder containing the MMSeqs binary
     :return: The path to the faa file that holds the clustered nucleotide sequences/the sequences representing the clusters.
     """
-    output_prefix = utils.global_output(config.get('basename')) # MMSeqs adds file endings on their own.
+    output_prefix = utils.global_output(config.get('basename'))  # MMSeqs adds file endings on their own.
     tmp_dir = utils.global_output("mmseqs")
 
     command = [
         f"{mmseqs_path}/mmseqs", "easy-linclust",
         aa_sequences,  # Input FASTA
-        output_prefix, # Prefix that is prepended to all the output files (which are 3:
-            # 1 FASTA with all seq ids (..._all_seqs.fasta),
-            # 1 TSV mapping each seq ID to the ID of the cluster representative (..._cluster.tsv),
-            # 1 FASTA containing only the cluster representatives (..._rep_seq.fasta))
+        output_prefix,  # Prefix that is prepended to all the output files (which are 3:
+        # 1 FASTA with all seq ids (..._all_seqs.fasta),
+        # 1 TSV mapping each seq ID to the ID of the cluster representative (..._cluster.tsv),
+        # 1 FASTA containing only the cluster representatives (..._rep_seq.fasta))
         tmp_dir,
         "--min-seq-id", f"{clustering_threshold}",
         "--threads", f"{threads}",
-        "--cluster-mode", "2", # Simulates CD-Hit's approach to clustering.
-        "--dbtype", "1", # As we only expect AA sequences to arrive in this function, we can guide this a little bit.
-        "--createdb-mode", "0", # As the input may contain multi-line sequences, this is safer (also, using more disk space is cheaper than rerunning the pipeline)
-        "--remove-tmp-files", "false", # Helps debugging. Or just with understanding what the pipeline does.
-    ] # The -d 40 flag is just for display purposes and thus not relevant for us.
+        "--cluster-mode", "2",  # Simulates CD-Hit's approach to clustering.
+        "--dbtype", "1",  # As we only expect AA sequences to arrive in this function, we can guide this a little bit.
+        "--createdb-mode", "0",
+        # As the input may contain multi-line sequences, this is safer (also, using more disk space is cheaper than rerunning the pipeline)
+        "--remove-tmp-files", "false",  # Helps debugging. Or just with understanding what the pipeline does.
+    ]  # The -d 40 flag is just for display purposes and thus not relevant for us.
 
     subprocess.run(command)
 
@@ -221,16 +223,14 @@ def cluster_peptides(transcriptome: Path):
             e_value = config.get("contamination_evalue", 1e-5)
             blast_result = _blast_on_contaminants(blast_db, transcriptome, e_value, threads)
 
-            nucleotide_sequences = get_transcriptome_db(_filter_contaminants(blast_result, transcriptome), mmseqs_path=mmseqs_path)
+            nucleotide_sequences = get_transcriptome_db(_filter_contaminants(blast_result, transcriptome),
+                                                        mmseqs_path=mmseqs_path)
         else:
             nucleotide_sequences = get_transcriptome_db(transcriptome, mmseqs_path=mmseqs_path)
 
-        # Read length limits for open reading frames from config, but keep only if available.
         frame_size: dict[str, int] = {
-            k: v for k, v in {
-                "min_len": config.get("minlen"),
-                "max_len": config.get("maxlen")
-            }.items() if v is not None
+            "min_len": config.get("minlen", 99),
+            "max_len": config.get("maxlen", 30_000_000)
         }
 
         aa_sequences = _detect_orfs(nucleotide_sequences, threads=threads, mmseqs_path=mmseqs_path, **frame_size)
