@@ -218,7 +218,7 @@ def cluster_peptides(transcriptome: Path):
         if contaminants is not None:
             blast_db = _build_contaminants_database(contaminants)
 
-            e_value = config.get("contamination_evalue")
+            e_value = config.get("contamination_evalue", 1e-5)
             blast_result = _blast_on_contaminants(blast_db, transcriptome, e_value, threads)
 
             nucleotide_sequences = get_transcriptome_db(_filter_contaminants(blast_result, transcriptome), mmseqs_path=mmseqs_path)
@@ -237,5 +237,5 @@ def cluster_peptides(transcriptome: Path):
     else:
         aa_sequences = _drop_x(aa_sequences)
 
-    return _cluster_peptides(aa_sequences, config.get("clustering_threshold"),
+    return _cluster_peptides(aa_sequences, config.get("clustering_threshold", 0.99),
                              config.get("memory"), threads, mmseqs_path=mmseqs_path)
