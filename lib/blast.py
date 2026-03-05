@@ -56,7 +56,7 @@ def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
     """
     mmseqs_path = utils.ensure_mmseqs2(Path("software/mmseqs/bin"))
 
-    db_file = _download_uniprot(mmseqs_path=mmseqs_path)
+    db_file = config.get_path("swissprot_db_path") or _download_uniprot(mmseqs_path=mmseqs_path)
 
     threads = utils.get_threads()
     e_value = config.get("swissprot_evalue", 1e-10)
