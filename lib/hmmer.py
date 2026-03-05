@@ -84,6 +84,6 @@ def hmmer(toxin_candidates: Path) -> pd.DataFrame:
     :param toxin_candidates: A Path pointing to a fasta file with toxin candidates to run HMMer against.
     :return: A DataFrame holding the aggregated domain results.
     """
-    pfam_db = _download_pfam()
+    pfam_db = config.get_path("pfam_db_path") or _download_pfam()
     domain_table = _run_hmmer(toxin_candidates, pfam_db)
     return _parse_hmmsearch_output(domain_table)
