@@ -1,154 +1,199 @@
-# DeTox pipeline
+# Intoxi-Cate
+
+Intoxi-Cate is an improved version of the DeToX pipeline [[1](#cite1)] by Ringeval et al.
+
+The software provides an end-to-end pipeline for detecting (de novo) toxins in protein transcripts.
+It also features some preliminary steps to build up protein transcripts from assembled transcriptomes or even raw
+sequence reads.
+
+As DeTox [[1](#cite1)], it includes detection by sequence similarity as well as by structural features.
+
+While keeping the general structure of the pipeline as is, we replaced several tools the pipeline uses with freely
+available open-source software. This not only improves its usability as Intoxi-Cate can be installed with just a little
+more than a `conda install` command, but also its overall performance, as the replacement software generates equal or
+better results at the same or less runtime.
+
+Also, thanks to the translation into actual Python and modularisation into task-specific blocks it is now
+easier to maintain or further improve the software by replacing additional components.
+
+Intoxi-Cate is currently only tested on Linux, thus we cannot give any guarantees that it will run correctly on other
+platforms.
+
+Intoxi-Cate uses MMSeqs2 [[2](#cite2)] to replace both BLASTp and BLASTn used in this pipeline.
+To further reduce the number of dependencies, it also replaces orfipy [[3](#cite3)] in the pipeline section responsible
+for translating an assembled transcriptome into peptides.
+
+To replace SignalP and Phobius which are both access-restricted to scientific use [[4](#cite4), [5](#cite5)], we use
+TMbed [[6](#cite6)], which is available under Apache 2.0 license.
 
 ## Installation
 
+The installation is rather simple in the end:
+All you need to do is downloading the software, create a new environment based on the environment file included in the
+repository and maybe check that everything is working as expected.
 
 ### 1. Clone Repository
-- Clone the repository to your local machine.
+
+Clone the repository to your local machine:
+
   ```bash
-  git clone <repository_url>
+  git clone https://github.com/Morridin/intoxi-cate.git
   ```
----
 
 ### 2. Create and Activate Conda Environment
 
-#### 2.1 Installation of Conda
+First, you need conda in order to get all the dependencies Intoxi-Cate needs to work installed along with the pipeline.
+In most cases, Miniforge or Miniconda should be sufficient.
 
-- Before you begin, make sure you have a recent version of Python installed on your system. Conda is typically distributed with the Anaconda, Miniconda, Miniforge distribution.
+#### 2.1 Check that conda is available
 
-##### 2.1.1 Miniforge Distribution (recommended)
+To check whether conda is already installed on your system, enter
 
-  1. **Download Miniforge Distribution**
-    - Visit the official Miniforge repository at [https://github.com/conda-forge/miniforge]
-    - Select the appropriate version for your operating system (Windows, macOS, Linux) and download the installation file.
+```bash
+conda -V
+```
 
-  2. **Install Miniforge:**
-   - Follow the installation instructions provided on the official Miniforge repository.
-   - After installation, you should have Conda installed on your system.
+into your terminal.
+If you receive an error message, conda is likely to be not installed on your system.
+Then, proceed with step [2.2.](#22-install-conda)
 
-##### 2.1.2 Anaconda/Miniconda Distribution (not recommended):
+If you see something like `conda 26.1.0`, conda is installed on your system and ready for use.
+Please, proceed with step [2.3](#23-create-conda-environment)
 
-1. **Download the Anaconda/Miniconda Distribution:**
-   - Visit the official Anaconda website at [https://docs.conda.io/projects/conda/en/latest/user-guide/install/).
-   - Select the appropriate version for your operating system (Windows, macOS, Linux) and download the installation file.
+#### 2.2 Install conda
 
-2. **Install Anaconda/Miniconda:**
-   - Follow the installation instructions provided on the official Anaconda page.
-   - After installation, you should have Conda installed on your system.
+To install either of the aforementioned options, please visit the conda website and follow along the instructions in
+the [installation guide](https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html).
+The link points the Linux version of the guide as Linux is the only supported platform.
 
-##### 2.1.3 Verify the installation:
-  - Open a terminal or command prompt and type ```conda --version``` to verify that Conda has been installed correctly.
-  - You can check the installation of the distribution using the command:
-   ```
-    $ conda env list
-    # conda environments:
-    #
-                                 /home/(user name)/anaconda3
-                                 /home/(user name)/miniconda3
-    base                  *      /home/(user name)/miniforge3
-  ```
-  - Only the distributions you have installed will be displayed
+Some notes on that guide:
 
-##### 2.1.4 Select distribution
-
-  - All the following steps, such as creating the detox environment, should be carried out by first selecting the distribution that has been installed.
-  - To select the Miniforge distribution, for example, if this is the one that has been installed, you need to run the command:
-  ```
-   conda activate /home/(user name)/miniforge3
-  ```
-
-#### 2.2 Installation of Mamba
-
-Mamba is an alternative to Conda that offers improved performance for environment and package management.
-
-1. **Install Mamba:**
-   - After installing Conda, open your terminal or command prompt.
-   - Type the following command to install Mamba:
-     ```
-     conda install -c conda-forge mamba
-     ```
-
-2. **Verify the Installation:**
-   - To ensure that Mamba has been successfully installed, type the following command:
-     ```
-     mamba --version
-     ```
-   - You should see the Mamba version displayed, confirming a successful installation.
-
-#### 2.3 Create and Activate Conda Environment
-
-- Utilize Mamba for efficient environment setup and activation. 
+- In case of miniforge, you can't verify the installer checksum as miniforge doesn't offer a fingerprint to compare to.
+- Instead of executing step 5 as in the guide, you can instead run the following command, if your shell is bash:
   ```bash
-  mamba env create -f toxo_env.yml && mamba activate DeToX
+  source ~/.bashrc
   ```
----
-
-### 3. Install Licensed Software
-
-#### SignalP
-- Download SignalP 5.0 from the [official website](https://services.healthtech.dtu.dk/cgi-bin/sw_request?software=signalp&version=5.0&packageversion=5.0b&platform=Linux).
-- Follow the instructions in the provided README for system-wide installation.
-
-#### Phobius
-- Download Phobius from [this link](https://phobius.sbc.su.se/data.html).
-- Navigate to the download directory and register Phobius using the provided script:
+- If you don't like to always have a conda environment activated, we suggest you run
   ```bash
-  mamba activate DeToX && phobius-register phobius101_linux.tgz
+  conda config --set auto_activate_base false
   ```
 
-#### WoLF PSORT (Pending Automatic Installation)
-- Clone the [WoLF PSORT repository](https://github.com/fmaguire/WoLFPSort).
-- Specify the path to `runWolfPsortSummary` in the `config.yaml` file.
+#### 2.3 Create conda environment
 
----
+As final step installing Intoxi-Cate, you need to create a conda-environment.
+
+In order to create the environment, please run
+
+```bash
+conda env create -f intoxi-cate.yaml
+```
+
+This will likely take some time (expect 5 - 15 minutes).
+If you want to speed this up, if you have mamba available on your machine (included in miniforge) by running
+
+```bash
+mamba --version
+```
+
+As previously when checking for the conda availability, you have mamba available if you see a version number.
+
+If mamba is available, please replace `conda` in the command above with `mamba` to speed up the proccess.
+
+Now, you're ready to use the pipeline!
 
 ## Usage
 
 ### Activate Environment and Prepare Configuration
-1. Activate the `DeToX` environment.
+
+1. Activate the `intoxi-cate` environment.
    ```bash
-   mamba activate DeToX
+   conda activate intoxi-cate
    ```
 2. Copy `config.yaml` to your working directory and populate it with required information.
 
 ### Run Pipeline
-Execute the pipeline using Snakemake.
 
-- This Snakemake command utilizes the -j option to specify the maximum number of threads (parallel jobs) for rule execution. The specific number, in this case, is set to 8 (-j 8). Additionally, the number of threads can be influenced by the "threads" parameter in the config.yaml file. Ensure the desired thread count is configured in the "threads" parameter of the config.yaml file before executing the command.
-```bash
-snakemake --snakefile /path/to/snakefile -r all -j 8 --configfile config.yaml
+The pipeline can be run with
+
+```
+intoxi-cate
+```
+
+You can specify a `--config` option pointing to an alternative location of a config file other than `config.yaml` in the
+current directory.
+Also, you can specify more or less any of the options from within the config file as parameters.
+
+For a complete overview of all available options, run
+
+```
+intoxi-cate --help
+```
+
+or
+
+```
+intoxi-cate -h
 ```
 
 ### Configuration of settings and options
-To use this project, you need to fill the `config.yaml` file with the following parameters:
 
-- `transcriptome`: the path to the transcriptome file in FASTA format. If this parameter is not provided, the assembly will be performed using the `R1` and `R2` parameters.
-- `output_dir`: absolute path of the directory used for output files. If no path is provided the files will be created in the current directory.
-- `basename`: the basename for the output files.
-- `memory`: the memory in GB to use for the assembly.
-- `threads`: the number of logic threads, not physical cores, to use for the assembly. For clarity, this parameter should be equal to or less than the number of cores available on your machine.
-- `R1`: the path to the forward paired-end or single-end reads file in FASTQ format. This parameter is required if `transcriptome` is not provided.
-- `R2`: the path to the reverse paired-end reads file in FASTQ format. This parameter is required if `transcriptome` is not provided and data are paired-end.
-- `contaminants`: the path to the contaminants file in FASTA format. This parameter is mandatory.
-- `proteome_fasta`: the path to the proteome FASTA file for functional annotation (optional). If this parameter is provided, `transcriptome`, `R1`, and `R2` must be left empty and `quant` must be set to `false`.
-- `toxin_db`: the path to the toxin database file in FASTA format. This parameter is mandatory.
-- `pfam_db_path`: the path to the Pfam database file in .hmm format. If no path is provided, the database is downloaded automatically.
-- `swissprot_db_path`: the path to the SwissProt database file in fasta.gz format. If no path is provided, the database is downloaded automatically.
-- `toxins_evalue`: the e-value threshold for toxin annotation using BLAST.
-- `contamination_evalue`: the e-value threshold for contamination removal using BLAST.
-- `clustering_threshold`: the clustering threshold for CD-HIT.
-- `maxlen`: the maximum length of transcripts to keep.
-- `signalp_dvalue`: the D-value threshold for SignalP.
-- `wolfPsort_path`: the path to the WoLF PSORT executable (WoLFPSort/bin/runWolfPsortSummary). This parameter is required if `wolfpsort` is set to `True`.
-- `quant`: a boolean option to perform transcript quantification using Salmon. If set to `True`, the `R1` and `R2` parameters are required.
-- `TPMthreshold`: The TPM threshold for a sequence to be flagged "T".
-- `wolfpsort`: a boolean option to perform subcellular localization prediction using WoLF PSORT. If set to `True`, the `wolfPsort_path` parameter is required.
-- `swissprot`: a boolean option to perform functional annotation using SwissProt. If set to `True`, the `swissprot_evalue` parameter is required.
-- `swissprot_evalue`: the e-value threshold for SwissProt annotation using BLAST.
-- `cys_pattern`: a boolean option to perform cysteine pattern analysis.
+The pipeline expects the config file to be of the format `key: value` and to contain the following keys:
 
-## Citation
+#### Required keys
 
-If you use DeTox in your research, please cite our article:
+The following table lists all configuration keys that necessary for the pipeline to run.
+Out of the group `Rx`, `transcriptome` and `proteome_fasta`, only one key is required.
 
-Allan Ringeval, Sarah Farhat, Alexander Fedosov, Marco Gerdol, Samuele Greco, Lou Mary, Maria Vittoria Modica, Nicolas Puillandre, DeTox: a pipeline for the detection of toxins in venomous organisms, Briefings in Bioinformatics, Volume 25, Issue 2, March 2024, bbae094, https://doi.org/10.1093/bib/bbae094
+| Config Key       | Description                                                                                                                                                                                                                                                                                   | 
+|:-----------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `proteome_fasta` | If set, neither `transcriptome` or `R1` may be set. If you have your data already as proteome available, set this value to the path to your proteome file in FASTA format.<br/>As Salmon needs raw reads, you can't have this set to a value and `quant` to true at the same time.            | 
+| `R1`             | If you do not provide a value for either `transcriptome` or `proteome`, this value **must** be set with the path to a file containing raw reads in FASTQ format. <br/>If only `R1` is set, the reads are assumed to be single-end, if `R2` is set as well, they are assuemd to be paired-end. |       
+| `R2`             | If you have paired-end raw read data, set this to the path to the reverse paired-end file in FASTQ format.                                                                                                                                                                                    |        
+| `transcriptome`  | If you have the transcriptome already assembled in FASTA format, provide this parameter with the path to that file. <br/>If this parameter and `proteome` are not provided, the assembly will be performed using the `R1` and `R2` parameters.                                                |     
+| `toxin_db`       | The path to your toxins database file in FASTA format.                                                                                                                                                                                                                                        |  
+
+The following table lists all values that can optionally be set to adjust the pipeline behaviour.
+Some options are only effective if others are set, some exclude other options.
+
+| Config Key             | Description                                                                                                                                                                                                                           |    Default | 
+|:-----------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------:|
+| `basename`             | Optional. With this string, the names of all files generated by the pipeline will start. <br/>If this value is not set, the file names will be left empty, except for their extensions.                                               |     (none) |
+| `contaminants`         | Optional. Setting this value to the path of a contaminants database file in FASTA format activates contaminant filtering within the pipeline.                                                                                         |     (none) |
+| `contamination_evalue` | Optional. The e-value threshold for contamination removal using MMSeqs2.                                                                                                                                                              |       1E-5 |
+| `clustering_threshold` | Optional. The clustering threshold for MMSeqs2 in the peptide clustering step when Intoxi-Cate is run without `proteome` parameter set.                                                                                               |       0.99 |                                                                                                                                    
+| `cys_pattern`          | Optional. Set to `True` if you want Intoxi-Cate to perform cysteine pattern analysis using DeTox's in-house script for that purpose.                                                                                                  |      False |
+| `maxlen`               | Optional. The maximum length a section within an NA sequence may have to be considered an ORF, in nucleotides.                                                                                                                        | 30 000 000 |
+| `memory`               | Optional. Add a value to limit the maximum amount of RAM in GigaByte available to the pipeline. <br/>If not set, Intoxi-Cate will use as much as it needs up to machine limits.                                                       |     (none) |
+| `minlen`               | Optional. The minimum length a section within an NA sequence needs to have to be considered an ORF, in nucleotides.                                                                                                                   |         99 |
+| `output_dir`           | Optional. Add a value to specify a dedicated directory for the output files. The directory does not need to exist in beforehand.<br/>If not set, all files the pipeline produces will be put into the current directory.              |        `.` |
+| `pfam_db_path`         | Optional. The path to your Pfam database file in .hmm format. If not provided, Intoxi-Cate downloads the database.                                                                                                                    |     (none) |
+| `quant`                | Optional. If set (to `True`), Intoxi-Cate performs transcript quantification using Salmon. <br/>This option requires the `R1` parameter to have a value and, depending on the reads data, the `R2` parameter to have a value as well. |      False |
+| `swissprot`            | Optional. Set to `True` to perform functional annotation using SwissProt.                                                                                                                                                             |      False |
+| `swissprot_evalue`     | Optional. The e-value threshold for SwissProt annotation using MMSeqs2. Only needed at all if `swissprot` is set to `True`.                                                                                                           |      1E-10 |
+| `swissprot_db_path`    | Optional. The path to your SwissProt database file in either (gzip-compressed) FASTA format or in the MMSeqs database format. <br/>If no path is provided, MMSeqs will download the database when running a search against SwissProt. |     (none) |
+| `threads`              | Optional. Add a value to limit how many CPU threads the pipeline may use. Should not be more than the maximum number of threads avalailable to your machine. <br/>If not set, the pipeline will use all available threads.            |     (none) |
+| `toxins_evalue`        | Optional. The e-value threshold for toxin annotation using MMSeqs2.                                                                                                                                                                   |      1E-10 |
+| `TPMthreshold`         | Optional. The TPM threshold for a sequence to be flagged "T".                                                                                                                                                                         |       1000 |
+| `wolfpsort`            | Optional. Set to `True` if you want Intoxi-Cate to perform subcellular localization prediction as per WoLF PSORT with TMbed.                                                                                                          |      False |
+
+## References
+
+<p id="cite1">[1] RINGEVAL, A., S. FARHAT, A. FEDOSOV, M. GERDOL, S. GRECO, L. MARY, M. V. MODICA und N.
+PUILLANDRE, 2024. DeTox: a pipeline for the detection of toxins in venomous organisms. In: Briefings in Bioinformatics.
+2024, vol. 25, no. 2, bbae094. <a href="https://doi.org/10.1093/bib/bbae094">DOI 10.1093/bib/bbae094</a>. PMID: 38493344.</p>
+<p id="cite2">[2] STEINEGGER, Martin and Johannes SÖDING, 2017. MMseqs2 enables sensitive protein sequence
+searching for the analysis of massive data sets. In: Nature Biotechnology. 2017, vol. 35, no. 11, pp. 1026–1028.
+<a href="https://doi.org/10.1038/nbt.3988">DOI 10.1038/nbt.3988</a>. ISSN 1546-1696.</p>
+<p id="cite3">[3] SINGH, Urminder and Eve Syrkin WURTELE, 2021. orfipy: a fast and flexible tool for extracting
+ORFs. In: Bioinformatics. 2021, vol. 37, no. 18, pp. 3019–3020.
+<a href="https://doi.org/10.1093/bioinformatics/btab090">DOI 10.1093/bioinformatics/btab090</a>.</p>
+<p id="cite4">[4] ALMAGRO ARMENTEROS, José Juan, Konstantinos D. TSIRIGOS, Casper Kaae SØNDERBY, Thomas Nordahl PETERSEN, 
+Ole WINTHER, Søren BRUNAK, Gunnar von HEIJNE and Henrik NIELSEN, 2019. SignalP 5.0 improves signal peptide predictions 
+using deep neural networks. In: <em>Nature Biotechnology</em>. 2019, vol. 37, pp. 420–423. 
+<a href="https://doi.org/10.1038/s41587-019-0036-z">DOI 10.1038/s41587-019-0036-z</a>.</p>
+<p id="cite5">[5] KÄLL, Lukas, Anders KROGH und Erik L.L. SONNHAMMER, 2004. A Combined Transmembrane Topology and Signal 
+Peptide Prediction Method. In: <em>Journal of Molecular Biology</em>. 2004, vol. 338, no. 5, pp. 1027–1036. 
+<a href="https://doi.org/10.1016/j.jmb.2004.03.016">DOI 10.1016/j.jmb.2004.03.016</a>.</p>
+<p id="cite6">[6] BERNHOFER, Michael and Burkhard ROST, 2022. TMbed: transmembrane proteins predicted through language 
+model embeddings. In: BMC Bioinformatics. 2022, vol. 23, no. 1, p. 326. DOI 
+<a href="https://doi.org/10.1186/s12859-022-04873-x">DOI 10.1186/s12859-022-04873-x</a>.</p>
