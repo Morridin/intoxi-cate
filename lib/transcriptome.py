@@ -39,18 +39,19 @@ def assemble_transcriptome() -> Path:
 
 
 @cache
-def get_db(transcriptome_fasta: Path, *, mmseqs_path: Path) -> Path:
+def get_db(transcriptome_fasta: Path, *, mmseqs_path: str) -> Path:
     """
     Generates the MMSeqs2 DB file out of a transcriptome FASTA file.
     If it was already generated this program run, just return the path to the database file instead.
     :param transcriptome_fasta: The path to the FASTA file that shall be translated to MMSeqs format.
-    :param mmseqs_path: The path to the folder containing the MMSeqs binary
+    :param mmseqs_path: A string containing a path to the MMSeqs executable such that copying it into terminal runs MMSeqs.
     :return: The path to the MMSeqs database.
     """
     db_path = utils.global_output("mmseqs/" + config.get("basename") + ".db")
     db_path.resolve().parent.mkdir(parents=True, exist_ok=True)
+
     command = [
-        f"{mmseqs_path}/mmseqs", "createdb",
+        mmseqs_path, "createdb",
         transcriptome_fasta,  # Input file
         db_path,  # Output file
         "--dbtype", "0",
