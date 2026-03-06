@@ -1,16 +1,14 @@
 """
-This module contains all functionality around running BLASTn.
+This module contains all functionality around running BLASTp and BLASTn.
 
-This contains the former rule blocks
-build_toxin_blast_db <- blast_on_toxins
-and
-download_uniprot <- make_uniprot_blast_database <- blast_on_uniprot
-
-It features a public API that yields the results of blast_on_toxins and blast_on_uniprot.
+Originally, this only included the task groups of running BLASTp on a toxins database and Swiss-Prot.
+However, after switching to MMSeqs2 for this task, the command to replace BLASTn was equal to that of the former
+BLASTp runs, so it was moved here.
 """
 import subprocess
 import sys
 import tempfile
+from enum import IntEnum
 from functools import cache
 from pathlib import Path
 
@@ -18,10 +16,30 @@ import pandas as pd
 
 from lib import config, utils
 
-__all__ = ["blast_on_toxins", "blast_on_uniprot"]
+__all__ = ["blast_on_contaminants", "blast_on_toxins", "blast_on_uniprot"]
 
 
 # ============================= Public functions ============================= #
+@cache
+def blast_on_contaminants(contigs: Path) -> pd.DataFrame:
+    """
+    Runs MMSeqs search against contaminants database, replacing BLASTn for the sake of reducing dependencies.
+    Goal of this function is to obtain a list of contigs that are similar in sequence to contigs known to be contaminants.
+    :param contigs: A path leading to a FASTA file holding transcriptome data.
+    :return:
+    """
+    db_file = config.get_path("contaminants")
+    if db_file is None:
+        print("Missing config value 'contaminants' pointing at the contaminants (blast) database file!",
+              file=sys.stderr)
+        exit(1)
+
+    e_value = config.get("contamination_evalue", 1e-5)
+    columns = ["ID", "c1", "c2", "c3"]
+
+    return _run_blast(contigs, db_file, e_value, SearchType.NUCLEOTIDE, columns)
+
+
 @cache
 def blast_on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
     """
@@ -35,16 +53,13 @@ def blast_on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
     """
     db_file = config.get_path("toxin_db")
     if db_file is None:
-        print("Missing config value 'toxin_db' pointing at the Toxins blast database file!", file=sys.stderr)
+        print("Missing config value 'toxin_db' pointing at the toxins (blast) database file!", file=sys.stderr)
         exit(1)
 
-    mmseqs_path = utils.ensure_mmseqs2(Path("software/mmseqs/bin"))
-    threads = utils.get_threads()
     e_value = config.get("toxins_evalue", 1e-10)
-
     columns = ["qseqid", "toxinDB_sseqid", "toxinDB_pident", "toxinDB_evalue"]
 
-    return _run_blast(filtered_clustered_aa_sequences, db_file, e_value, threads, columns, mmseqs_path=mmseqs_path)
+    return _run_blast(filtered_clustered_aa_sequences, db_file, e_value, SearchType.AMINO_ACID, columns)
 
 
 @cache
@@ -54,35 +69,39 @@ def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
     :param toxin_candidates: The proteins that are deemed potential toxins.
     :return: A DataFrame containing all those proteins that have a similarity match to a protein in Swiss-Prot
     """
-    mmseqs_path = utils.ensure_mmseqs2(Path("software/mmseqs/bin"))
 
-    db_file = config.get_path("swissprot_db_path") or _download_uniprot(mmseqs_path=mmseqs_path)
-
-    threads = utils.get_threads()
+    db_file = config.get_path("swissprot_db_path") or _download_uniprot()
     e_value = config.get("swissprot_evalue", 1e-10)
-
     columns = ["qseqid", "uniprot_sseqid", "uniprot_pident", "uniprot_evalue"]
 
-    return _run_blast(toxin_candidates, db_file, e_value, threads, columns, mmseqs_path=mmseqs_path)
+    return _run_blast(toxin_candidates, db_file, e_value, SearchType.AMINO_ACID, columns)
 
 
 # ============================ Private functions ============================= #
-def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, columns: list[str], *,
-               mmseqs_path: Path) -> pd.DataFrame:
+class SearchType(IntEnum):
+    NUCLEOTIDE = 1,
+    AMINO_ACID = 3
+
+
+def _run_blast(aa_sequences: Path, db: Path, e_value: float, search_type: SearchType,
+               columns: list[str]) -> pd.DataFrame:
     """
     Runs BLASTp against the FASTA file given in `aa_sequences` on the database provided in `db`.
     :param aa_sequences: The path to a FASTA file containing the query sequences for the BLASTp run.
     :param db: The database on which BLASTp is to operate
     :param e_value: The e_value for BLASTp
-    :param threads: The number of threads BLASTp shall use
     :param columns: The column names for the returned DataFrame, as list of strings.
     :return: A pandas DataFrame containing the BLASTp results.
     """
+    mmseqs_path = utils.ensure_mmseqs2()
+    threads = utils.get_threads()
+    memory = config.get("memory")
+
     blast_result: pd.DataFrame
 
     with tempfile.NamedTemporaryFile(suffix=".m8", delete_on_close=False) as result_file:
         command = [
-            f"{mmseqs_path}/mmseqs", "easy-search",
+            mmseqs_path, "easy-search",
             aa_sequences,
             db,
             result_file.name,
@@ -93,6 +112,8 @@ def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, colum
             "--format-output", "query,target,pident,evalue",
             # replaces the --outfmt param (output is already in tabular format by default)
             "--threads", f"{threads}",
+            "--split-memory-limit", f"{memory * 0.8}G",
+            "--search-type", f"{search_type}",
         ]
         subprocess.run(command)
 
@@ -105,17 +126,18 @@ def _run_blast(aa_sequences: Path, db: Path, e_value: float, threads: int, colum
 
 
 @cache
-def _download_uniprot(*, mmseqs_path: Path) -> Path:
+def _download_uniprot() -> Path:
     """
     Downloads the latest release of the UniProt database
     """
+    mmseqs_path = utils.ensure_mmseqs2()
     mmseqs_dir = utils.global_output("mmseqs")
     mmseqs_dir.mkdir(parents=True, exist_ok=True)
 
     db_file = mmseqs_dir / "uniprot.db"
 
     command = [
-        f"{mmseqs_path}/mmseqs", "databases",
+        mmseqs_path, "databases",
         "UniProtKB/Swiss-Prot",
         db_file,
         mmseqs_dir,
