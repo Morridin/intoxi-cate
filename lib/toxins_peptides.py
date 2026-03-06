@@ -1,13 +1,6 @@
 """
-This module bundles the peptide filtering rules
-
-filter_signalp_outputs <- extract_secreted_peptides <- run_phobius <- extract_non_tM_peptides
-
-together with the toxin filtering rules
-
-retrieve_orfs_with_blast_without_signalp <- retrieve_candidate_toxins.
-
-Its public API consists of the outputs of retrieve_candidate_toxins and filter_signalp_outputs.
+This module contains the functionality for DeToX's last filtering step where all the transmembrane peptides are removed
+from the remaining list of toxin candidate peptides.
 """
 import tempfile
 from pathlib import Path
@@ -23,18 +16,23 @@ __all__ = ["retrieve_candidate_toxins"]
 
 # ============================= Public functions ============================= #
 def retrieve_candidate_toxins(clustered_peptides: Path, toxins_blast_result: pd.DataFrame,
-                              signalp_result: pd.DataFrame) -> Path:
+                              signal_peptides: pd.DataFrame) -> Path:
     """
     Builds a list of toxin candidates out of the data provided with the parameters.
+    In this list, only those peptides are included that were either detected by structural features or sequence
+    similarity to known toxins and that do not feature any transmembrane structures.
     :param clustered_peptides: A FASTA file containing amino acid sequences.
-    :param toxins_blast_result: A DataFrame containing peptides without any signal sequence.
-    :param signalp_result: A DataFrame containing peptides with clear signal sequences.
+    :param toxins_blast_result: A DataFrame containing peptides that were detected by sequence similarity to other, known toxins.
+        It is expected to contain a column 'ID' listing the sequence IDs of the contained peptides.
+    :param signal_peptides: A DataFrame containing peptides with clear signal sequences.
+        The only relevant property is that its index consists of the sequence IDs of the contained peptides.
     :return: A DataFrame holding those sequences that are candidate toxins.
     """
-    secreted_peptides, non_secreted_peptides = _extract_secreted_peptides(signalp_result, clustered_peptides)
+    secreted_peptides, non_secreted_peptides = _extract_secreted_peptides(signal_peptides, clustered_peptides)
 
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
-        tmbed.run(secreted_peptides, output_file.name, True, True, utils.get_threads(), config.get_path("tmbed_model_path"))
+        tmbed.run(secreted_peptides, output_file.name, True, True, utils.get_threads(),
+                  config.get_path("tmbed_model_path"))
         tmbed_result = tmbed.parse_predictions(output_file.name, _generate_non_transmembrane_rows).set_index("ID")
 
     output_file = utils.global_output(config.get("basename") + "_candidate_toxins.fasta")
@@ -48,11 +46,11 @@ def retrieve_candidate_toxins(clustered_peptides: Path, toxins_blast_result: pd.
 
 
 # ============================ Private functions ============================= #
-def _extract_secreted_peptides(signalp_result: pd.DataFrame, clustered_peptides: Path) -> tuple[Path, Path]:
+def _extract_secreted_peptides(signal_peptides: pd.DataFrame, clustered_peptides: Path) -> tuple[Path, Path]:
     """
-    This function filters a FASTA file with amino acid sequences against the SignalP output and
+    This function filters a FASTA file with amino acid sequences against a list of secreted peptides and
     sorts them into 'secreted' and 'non-secreted' peptides.
-    :param signalp_result: The filtered output of SignalP with only the definitively secreted peptides included.
+    :param signal_peptides: A DataFrame containing only definitively secreted peptides. Its index is expected to contain the relevant Sequence IDs.
     :param clustered_peptides: The path to a FASTA file containing amino acid sequences (e.g. the output of `cluster_peptides`).
     :return: A tuple of two file paths with the first one pointing to the secreted peptides and the second one pointing to the non-secreted peptides.
     """
@@ -61,7 +59,7 @@ def _extract_secreted_peptides(signalp_result: pd.DataFrame, clustered_peptides:
 
     with open(non_secreted_peptides, "w") as n_outfile, open(secreted_peptides, "w") as out_file:
         for seq in SeqIO.parse(clustered_peptides, "fasta"):
-            if seq.id in signalp_result.index:
+            if seq.id in signal_peptides.index:
                 SeqIO.write(seq, out_file, "fasta")
             else:
                 SeqIO.write(seq, n_outfile, "fasta")
@@ -76,8 +74,9 @@ def _filter_fasta_file(fasta_file: Path, filter_map: pd.DataFrame) -> pd.DataFra
     will be copied into a pandas DataFrame and returned.
 
     :param fasta_file: The path to the FASTA file that shall be filtered.
-    :param filter_map: The path to a TSV file providing the IDs of the peptides to be kept.
-    :return: A DataFrame containing the peptides present in both files.
+    :param filter_map: A DataFrame containing the sequence IDs of the peptides to keep in the column 'ID'.
+    :return: A DataFrame containing the peptides present in both files, consisting of the columns 'ID' and 'Sequence',
+        with the latter holding original the Bio.Seq object from parsing the input FASTA file.
     """
 
     records = utils.fasta_to_dataframe(fasta_file, True).set_index("ID")
