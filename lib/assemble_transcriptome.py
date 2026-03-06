@@ -13,7 +13,7 @@ from pathlib import Path
 
 from lib import utils, config
 
-__all__ = ["assemble_transcriptome", "run_salmon"]
+__all__ = ["assemble_transcriptome", "get_transcriptome_db", "run_salmon"]
 
 
 @cache
