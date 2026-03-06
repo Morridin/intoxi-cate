@@ -15,7 +15,7 @@ __all__ = ["detect_by_structure", "run", "parse_predictions"]
 
 
 # ============================= Public functions ============================= #
-def detect_by_structure(clustered_peptides: Path, use_gpu: bool = True, cpu_fallback: bool = True) -> pd.DataFrame:
+def detect_by_structure(clustered_peptides: Path) -> pd.DataFrame:
     """
     This function runs tmbed, collects the results and returns them as versatile DataFrame.
     :param clustered_peptides: The path to a FASTA file containing the amino acid sequences on which TMbed shall run.
@@ -26,10 +26,12 @@ def detect_by_structure(clustered_peptides: Path, use_gpu: bool = True, cpu_fall
     third column. The DataFrame only contains such sequences that TMbed could identify as featuring a signal peptide.
     """
     model_dir = config.get_path("tmbed_model_path")
+    use_cpu = config.get("tmbed_use_cpu", True)
+    use_gpu = config.get("tmbed_use_gpu", True)
     threads = utils.get_threads()
 
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
-        run(clustered_peptides, output_file.name, use_gpu, cpu_fallback, threads, model_dir)
+        run(clustered_peptides, output_file.name, use_gpu, use_cpu, threads, model_dir)
 
         return parse_predictions(output_file.name, _generate_tmbed_pred_df_rows_signal_only)
 
@@ -45,7 +47,14 @@ def run(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fall
     :param threads: The number of CPU threads to use if TMbed does not run on the GPU.
     :param model_dir: The directory where TMbed shall store its models for later reuse.
     """
-    command = ["tmbed", "predict", "-f", clustered_peptides, "-p", output_file_name, "-t", f"{threads}"]
+    command = [
+        "tmbed", "predict",
+        "-f", clustered_peptides,
+        "-p", output_file_name,
+        "-t", f"{threads}",
+        "--out-format", "4"
+    ]
+
     if use_gpu:
         command.append("--use-gpu")
     else:
@@ -59,9 +68,7 @@ def run(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fall
     if model_dir is not None:
         command += ["-m", model_dir]
 
-    subprocess.run(
-        command,
-    )
+    subprocess.run(command, check=True)
 
 
 def parse_predictions(file: Path | str, f: Callable[[Path | str], Generator[dict, None, None]]) -> pd.DataFrame:

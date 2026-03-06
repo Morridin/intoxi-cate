@@ -30,9 +30,13 @@ def retrieve_candidate_toxins(clustered_peptides: Path, toxins_blast_result: pd.
     """
     secreted_peptides, non_secreted_peptides = _extract_secreted_peptides(signal_peptides, clustered_peptides)
 
+    threads = utils.get_threads()
+    use_cpu = config.get("tmbed_use_cpu", True)
+    use_gpu = config.get("tmbed_use_gpu", True)
+    model_dir = config.get_path("tmbed_model_path")
+
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
-        tmbed.run(secreted_peptides, output_file.name, True, True, utils.get_threads(),
-                  config.get_path("tmbed_model_path"))
+        tmbed.run(secreted_peptides, output_file.name, use_gpu, use_cpu, threads, model_dir)
         tmbed_result = tmbed.parse_predictions(output_file.name, _generate_non_transmembrane_rows).set_index("ID")
 
     output_file = utils.global_output(config.get("basename") + "_candidate_toxins.fasta")
