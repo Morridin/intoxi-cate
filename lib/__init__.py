@@ -14,7 +14,6 @@ from .assemble_transcriptome import *
 from .generate_peptides import *
 from .hmmer import *
 from .blast import *
-from .signalp import *
 from .toxins_peptides import *
 from .output import *
 from .tmbed import detect_by_structure
@@ -23,5 +22,6 @@ from .tmbed import detect_by_structure
 __all__ = ["config", "utils", "tmbed"]
 
 # Add the different modules
-__all__ += ["assemble_transcriptome", "run_salmon", "cluster_peptides", "hmmer", "blast_on_toxins", "blast_on_uniprot",
-            "signalp", "retrieve_candidate_toxins", "build_output_table", "detect_by_structure"]
+__all__ += ["assemble_transcriptome", "get_transcriptome_db", "run_salmon", "cluster_peptides", "hmmer",
+            "blast_on_contaminants", "blast_on_toxins", "blast_on_uniprot", "retrieve_candidate_toxins",
+            "build_output_table", "detect_by_structure"]
