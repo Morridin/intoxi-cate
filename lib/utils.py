@@ -105,11 +105,41 @@ def get_sequence_id(line: str) -> str:
         raise ValueError("Malformatted prediction file, expected '>' at the end of ID line.")
     return seq_id
 
+@cache
+def ensure_mmseqs2(default: Path = None) -> str:
+    """
+    Checks if either the MMSeqs path given in config or as default leads to an existing and working MMSeqs installation
+    or MMSeqs2 is available on PATH.
+    :param default: An alternative path to look for an MMSeqs installation.
+    :return: A string that can be used to call MMSeqs2. If MMseqs2 could not be detected, a FileNotFoundError is raised.
+    """
+    def _check_path(mmseqs: Path | None) -> tuple[bool, Path]:
+        if not mmseqs:
+            return False, Path("")
 
-def ensure_mmseqs2(default: Path) -> Path:
-    path = config.get_path("mmseqs_path") or default
+        if mmseqs.name != "mmseqs":
+            mmseqs /= "mmseqs"
+
+        try:
+            subprocess.run([mmseqs, "version"], capture_output=True)
+        except FileNotFoundError:
+            return False, Path("")
+
+        return True, mmseqs
+
+    # First, check if something's within config.
+    found, path = _check_path(config.get_path("mmseqs_path"))
+    if found:
+        return str(path.resolve())
+
+    # Then, check the default value
+    found, path = _check_path(default)
+    if found:
+        return str(path.resolve())
+
+    # Finally, check if MMSeqs is on Path
     try:
-        subprocess.run([f"{path}/mmseqs", "version"], capture_output=True)
-    except FileNotFoundError:
-        raise FileNotFoundError("Could not find MMSeqs binary!")
-    return path
+        subprocess.run(["mmseqs", "version"], capture_output=True)
+    except FileNotFoundError as e:
+        raise e
+    return "mmseqs"
