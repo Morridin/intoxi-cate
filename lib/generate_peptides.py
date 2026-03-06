@@ -14,17 +14,17 @@ from pathlib import Path
 import pandas as pd
 from Bio import SeqIO
 
-from lib import config, utils, get_transcriptome_db, blast_on_contaminants
+from lib import config, utils, blast, transcriptome
 
 __all__ = ["cluster_peptides"]
 
 
 # ============================= Public functions ============================= #
 @cache
-def cluster_peptides(transcriptome: Path):
+def cluster_peptides(transcriptome_file: Path):
     """
     Runs the complete section that checks for contaminants and finally clusters peptides.
-    :param transcriptome: The path to a FASTA file containing transcriptome data, e.g. the result of `assemble_transcriptome`
+    :param transcriptome_file: The path to a FASTA file containing transcriptome data, e.g. the result of `assemble_transcriptome`
     :return: A FASTA file containing amino acid sequences of the representatives of the different peptide clusters.
     """
     threads = utils.get_threads()
@@ -36,13 +36,13 @@ def cluster_peptides(transcriptome: Path):
         # If there is a config entry for the contaminants, work with that value, else just go with the transcriptome.
         contaminants = config.get("contaminants")
         if contaminants is not None:
-            blast_result = blast_on_contaminants(transcriptome)
+            blast_result = blast.on_contaminants(transcriptome_file)
 
-            filtered_contigs = _filter_contaminants(blast_result, transcriptome)
+            filtered_contigs = _filter_contaminants(blast_result, transcriptome_file)
 
-            nucleotide_sequences = get_transcriptome_db(filtered_contigs, mmseqs_path=mmseqs_path)
+            nucleotide_sequences = transcriptome.get_db(filtered_contigs, mmseqs_path=mmseqs_path)
         else:
-            nucleotide_sequences = get_transcriptome_db(transcriptome, mmseqs_path=mmseqs_path)
+            nucleotide_sequences = transcriptome.get_db(transcriptome_file, mmseqs_path=mmseqs_path)
 
         frame_size: dict[str, int] = {
             "min_len": config.get("minlen", 99),

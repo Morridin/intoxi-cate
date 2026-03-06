@@ -16,12 +16,12 @@ import pandas as pd
 
 from lib import config, utils
 
-__all__ = ["blast_on_contaminants", "blast_on_toxins", "blast_on_uniprot"]
+__all__ = ["on_contaminants", "on_toxins", "on_uniprot"]
 
 
 # ============================= Public functions ============================= #
 @cache
-def blast_on_contaminants(contigs: Path) -> pd.DataFrame:
+def on_contaminants(contigs: Path) -> pd.DataFrame:
     """
     Runs MMSeqs search against contaminants database, replacing BLASTn for the sake of reducing dependencies.
     Goal of this function is to obtain a list of contigs that are similar in sequence to contigs known to be contaminants.
@@ -37,11 +37,11 @@ def blast_on_contaminants(contigs: Path) -> pd.DataFrame:
     e_value = config.get("contamination_evalue", 1e-5)
     columns = ["ID", "c1", "c2", "c3"]
 
-    return _run_blast(contigs, db_file, e_value, SearchType.NUCLEOTIDE, columns)
+    return _run(contigs, db_file, e_value, SearchType.NUCLEOTIDE, columns)
 
 
 @cache
-def blast_on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
+def on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
     """
     Runs MMSeqs2 search against the toxin database, replacing diamond blastp.
     The query are the peptides without any signal sequence.
@@ -59,11 +59,11 @@ def blast_on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
     e_value = config.get("toxins_evalue", 1e-10)
     columns = ["qseqid", "toxinDB_sseqid", "toxinDB_pident", "toxinDB_evalue"]
 
-    return _run_blast(filtered_clustered_aa_sequences, db_file, e_value, SearchType.AMINO_ACID, columns)
+    return _run(filtered_clustered_aa_sequences, db_file, e_value, SearchType.AMINO_ACID, columns)
 
 
 @cache
-def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
+def on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
     """
     Runs MMSeqs search against UniProt/Swiss-Prot. This replaces the formerly used diamond blastp command.
     :param toxin_candidates: The proteins that are deemed potential toxins.
@@ -74,7 +74,7 @@ def blast_on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
     e_value = config.get("swissprot_evalue", 1e-10)
     columns = ["qseqid", "uniprot_sseqid", "uniprot_pident", "uniprot_evalue"]
 
-    return _run_blast(toxin_candidates, db_file, e_value, SearchType.AMINO_ACID, columns)
+    return _run(toxin_candidates, db_file, e_value, SearchType.AMINO_ACID, columns)
 
 
 # ============================ Private functions ============================= #
@@ -83,8 +83,8 @@ class SearchType(IntEnum):
     AMINO_ACID = 3
 
 
-def _run_blast(aa_sequences: Path, db: Path, e_value: float, search_type: SearchType,
-               columns: list[str]) -> pd.DataFrame:
+def _run(aa_sequences: Path, db: Path, e_value: float, search_type: SearchType,
+         columns: list[str]) -> pd.DataFrame:
     """
     Runs BLASTp against the FASTA file given in `aa_sequences` on the database provided in `db`.
     :param aa_sequences: The path to a FASTA file containing the query sequences for the BLASTp run.

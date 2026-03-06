@@ -1,4 +1,4 @@
-from lib import config, assemble_transcriptome, cluster_peptides, hmmer, blast_on_toxins, blast_on_uniprot, \
+from lib import config, assemble_transcriptome, cluster_peptides, hmmer, blast, \
     retrieve_candidate_toxins, build_output_table, run_salmon, detect_by_structure
 
 if __name__ == "__main__":
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     transcriptome = assemble_transcriptome()
     clustered_peptides = cluster_peptides(transcriptome)
 
-    toxins_blast_result = blast_on_toxins(clustered_peptides)
+    toxins_blast_result = blast.on_toxins(clustered_peptides)
 
     signal_peptides = detect_by_structure(clustered_peptides).set_index("ID")
 
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     hmmer_result = hmmer(toxin_candidates)
 
     if config.get("swissprot", False):
-        uniprot_blast_result = blast_on_uniprot(toxin_candidates)
+        uniprot_blast_result = blast.on_uniprot(toxin_candidates)
     else:
         uniprot_blast_result = None
 
