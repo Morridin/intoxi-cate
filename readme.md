@@ -13,18 +13,18 @@ available open-source software. This not only improves its usability as Intoxi-C
 more than a `conda install` command, but also its overall performance, as the replacement software generates equal or
 better results at the same or less runtime.
 
-Also, thanks to the translation into actual Python and modularisation into task-specific blocks it is now
-easier to maintain or further improve the software by replacing additional components.
+Also, thanks to the translation into actual Python and modularisation into task-specific blocks it is now easier to 
+maintain or further improve the software by replacing additional components.
 
 Intoxi-Cate is currently only tested on Linux, thus we cannot give any guarantees that it will run correctly on other
 platforms.
 
 Intoxi-Cate uses MMSeqs2 [[2](#cite2)] to replace both BLASTp and BLASTn used in this pipeline.
-To further reduce the number of dependencies, it also replaces orfipy in the pipeline section responsible
-for translating an assembled transcriptome into peptides.
+To further reduce the number of dependencies, it also replaces orfipy in the pipeline section responsible for 
+translating an assembled transcriptome into peptides.
 
-To replace SignalP and Phobius which are both access-restricted to scientific use, we use
-TMbed [[3](#cite3)], which is available under Apache 2.0 license.
+To replace SignalP and Phobius which are both access-restricted to scientific use, we use TMbed [[3](#cite3)], which is 
+available under Apache 2.0 license.
 
 ## Installation
 
@@ -181,7 +181,6 @@ Some options are only effective if others are set, some exclude other options.
 | `wolfpsort`             | Set to `True` if you want Intoxi-Cate to perform subcellular localization prediction as per WoLF PSORT with TMbed.                                                                                                          | False      |
 
 ## References
-
 <p id="cite1">[1] RINGEVAL, A., S. FARHAT, A. FEDOSOV, M. GERDOL, S. GRECO, L. MARY, M. V. MODICA and N.
 PUILLANDRE, 2024. DeTox: a pipeline for the detection of toxins in venomous organisms. In: Briefings in Bioinformatics.
 2024, vol. 25, no. 2, bbae094. <a href="https://doi.org/10.1093/bib/bbae094">DOI 10.1093/bib/bbae094</a>. PMID: 38493344.</p>
