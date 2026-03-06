@@ -1,5 +1,5 @@
 from lib import config, assemble_transcriptome, cluster_peptides, hmmer, blast_on_toxins, blast_on_uniprot, \
-    signalp, retrieve_candidate_toxins, build_output_table, run_salmon, detect_by_structure
+    retrieve_candidate_toxins, build_output_table, run_salmon, detect_by_structure
 
 if __name__ == "__main__":
     # --- Validate Config ----------------------------------------------------------
@@ -26,9 +26,9 @@ if __name__ == "__main__":
 
     toxins_blast_result = blast_on_toxins(clustered_peptides)
 
-    signalp_result = detect_by_structure(clustered_peptides).set_index("ID")
+    signal_peptides = detect_by_structure(clustered_peptides).set_index("ID")
 
-    toxin_candidates = retrieve_candidate_toxins(clustered_peptides, toxins_blast_result, signalp_result)
+    toxin_candidates = retrieve_candidate_toxins(clustered_peptides, toxins_blast_result, signal_peptides)
 
     hmmer_result = hmmer(toxin_candidates)
 
@@ -48,6 +48,6 @@ if __name__ == "__main__":
         f"#                              Pipeline complete                               #\n"
         f"# ============================================================================ #\n"
         f"The final pipeline output can be found under {
-        build_output_table(toxin_candidates, hmmer_result, toxins_blast_result.reset_index(), signalp_result, uniprot_blast_result.reset_index(), salmon_result)
+        build_output_table(toxin_candidates, hmmer_result, toxins_blast_result.reset_index(), signal_peptides, uniprot_blast_result.reset_index(), salmon_result)
         }"
     )
