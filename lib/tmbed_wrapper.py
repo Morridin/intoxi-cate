@@ -11,7 +11,7 @@ import pandas as pd
 
 from lib import config, utils
 
-__all__ = ["detect_by_structure", "run", "parse_predictions"]
+__all__ = ["detect_by_structure", "run_tmbed", "parse_tmbed_predictions"]
 
 
 # ============================= Public functions ============================= #
@@ -31,13 +31,13 @@ def detect_by_structure(clustered_peptides: Path) -> pd.DataFrame:
     threads = utils.get_threads()
 
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
-        run(clustered_peptides, output_file.name, use_gpu, use_cpu, threads, model_dir)
+        run_tmbed(clustered_peptides, output_file.name, use_gpu, use_cpu, threads, model_dir)
 
-        return parse_predictions(output_file.name, _generate_tmbed_pred_df_rows_signal_only)
+        return parse_tmbed_predictions(output_file.name, _generate_tmbed_pred_df_rows_signal_only)
 
 
-def run(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fallback: bool, threads: int,
-        model_dir: Path | None) -> None:
+def run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fallback: bool, threads: int,
+              model_dir: Path | None) -> None:
     """
     The actual runner for TMbed. Assembles the command from the given parameters and runs TMbed.
     :param clustered_peptides: A Path pointing to a FASTA file.
@@ -71,7 +71,7 @@ def run(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fall
     subprocess.run(command, check=True)
 
 
-def parse_predictions(file: Path | str, f: Callable[[Path | str], Generator[dict, None, None]]) -> pd.DataFrame:
+def parse_tmbed_predictions(file: Path | str, f: Callable[[Path | str], Generator[dict, None, None]]) -> pd.DataFrame:
     """
     Produces a DataFrame from a TMbed predictions file.
     :param file: The path to the predictions file.
@@ -101,6 +101,6 @@ def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict
                     yield {
                         "ID": seq_id,
                         "Signal Peptide Predicted": True,
-                        "Raw Prediction": line,
+                        "Raw Prediction": line.strip(),
                         "Mature Peptide": sequence[diff:]
                     }

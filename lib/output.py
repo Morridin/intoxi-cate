@@ -40,8 +40,7 @@ def build_output_table(candidate_toxins: Path, hmmer: pd.DataFrame, toxins_blast
     :return: The Path to the TSV file with the combined output of the entire pipeline.
     """
     if config.get("wolfpsort", False):
-        wps_path = config.get("wolfPsort_path")
-        wolf_p_result = _run_wolfpsort(candidate_toxins, wps_path)
+        wolf_p_result = _run_wolf_psort(candidate_toxins)
     else:
         wolf_p_result = None
 
@@ -63,12 +62,13 @@ def build_output_table(candidate_toxins: Path, hmmer: pd.DataFrame, toxins_blast
 
 
 # ============================ Private functions ============================= #
-def _run_wolfpsort(candidate_toxins: Path, wolf_p_sort_path: Path) -> pd.DataFrame:
+def _run_wolf_psort(candidate_toxins: Path) -> pd.DataFrame:
     """
     Runs wolfpsort on secreted peptides inferred by TMbed
     :param candidate_toxins: FASTA file
     :return: DataFrame with results.
     """
+    wolf_p_sort_path = config.get_path("wolfPsort_path") or Path("./software/WoLFPSort/bin/runWolfPsortSummary")
     awk = "awk '{print $1\"\t\"$2}'"
 
     with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as output:
@@ -126,12 +126,15 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
     :param hmmer: See `build_output_table`, parameter `hmmer`.
     :param toxins_blast_result: See `build_output_table`, parameter `toxins_blast_result`.
     :param repeated_aa: The output from `_detect_repeated_aa`: a DataFrame containing the columns 'ID', 'RepeatsTypes' and 'RepeatsLengths'.
-        A column 'Sequence' will be dropped if present, all other will show up in the final output file.
+        A column 'Sequence' will be dropped if present, all other (including additional columns) will show up in the final output file.
     :param candidate_toxins: See `build_output_table`, parameter `candidate_toxins`.
     :param signal_peptides: See `build_output_table`, parameter `signal_peptides`.
     :param uniprot_blast_result: See `build_output_table`, parameter `uniprot_blast_result`.
     :param salmon_result: This parameter contains the quantisation Salmon performs if activated per config key `quant`.
     :param wolf_p_sort: When the config key `wolfpsort` is set to `True`, this parameter contains the localisation results associated with WoLF PSORT.
+        Expected columns: 'ID', 'WoLF PSORT Localisation'.
+        A column 'Sequence' will be dropped if present, the 'ID' column is required for joining and needs to contain the sequence IDs of each peptide.
+        Any other column will show up in the final output file.
     :param tpm_threshold: The value associated with the config key `TPMthreshold`. For more information, have a look into the readme file.
     :param cys_pattern: The value associated with the config key 'cys_pattern'. For more information, have a look into the readme file.
     """

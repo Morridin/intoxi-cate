@@ -5,6 +5,7 @@ Originally, this only included the task groups of running BLASTp on a toxins dat
 However, after switching to MMSeqs2 for this task, the command to replace BLASTn was equal to that of the former
 BLASTp runs, so it was moved here.
 """
+import math
 import subprocess
 import sys
 import tempfile
@@ -112,7 +113,7 @@ def _run(aa_sequences: Path, db: Path, e_value: float, search_type: SearchType,
             "--format-output", "query,target,pident,evalue",
             # replaces the --outfmt param (output is already in tabular format by default)
             "--threads", f"{threads}",
-            "--split-memory-limit", f"{memory * 0.8}G",
+            "--split-memory-limit", f"{math.floor(memory * 0.8)}G",
             "--search-type", f"{search_type}",
         ]
         subprocess.run(command)

@@ -9,7 +9,7 @@ from typing import Generator
 import pandas as pd
 from Bio import SeqIO
 
-from lib import config, utils, tmbed
+from lib import config, utils, tmbed_wrapper
 
 __all__ = ["retrieve_candidate_toxins"]
 
@@ -36,8 +36,8 @@ def retrieve_candidate_toxins(clustered_peptides: Path, toxins_blast_result: pd.
     model_dir = config.get_path("tmbed_model_path")
 
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
-        tmbed.run(secreted_peptides, output_file.name, use_gpu, use_cpu, threads, model_dir)
-        tmbed_result = tmbed.parse_predictions(output_file.name, _generate_non_transmembrane_rows).set_index("ID")
+        tmbed_wrapper.run_tmbed(secreted_peptides, output_file.name, use_gpu, use_cpu, threads, model_dir)
+        tmbed_result = tmbed_wrapper.parse_tmbed_predictions(output_file.name, _generate_non_transmembrane_rows).set_index("ID")
 
     output_file = utils.global_output(config.get("basename") + "_candidate_toxins.fasta")
 
