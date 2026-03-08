@@ -4,18 +4,18 @@ channels:
   - bioconda
   - conda-forge
 dependencies:
+  - python == 3.12
+  - biopython
+  - pandas
+  - pyyaml
+  - pytorch
   - salmon
   - fastp
   - trinity
   - hmmer
   - mmseqs2
-  - python == 3.12
-  - biopython
-  - httpx == 0.28.1
-  - pandas
   - pip
-  - pyyaml
-  - pytorch
-  - transformers == 4.34.0
   - pip:
+    - httpx == 0.28.1
+    - transformers == 4.34.0
     - git+https://github.com/BernhoferM/TMbed.git
