@@ -46,7 +46,7 @@ def assemble_transcriptome() -> Path:
     if transcriptome is None:
         transcriptome = config.get("proteome_fasta")
     if transcriptome is None:
-        reads = _trim_reads(config.get("R1"), config.get("R2"), threads)
+        reads = _trim_reads(config.get_path("R1"), config.get_path("R2"), threads)
         transcriptome = _assemble_transcriptome(reads["r1"], reads.get("r2"))
     return transcriptome
 
@@ -82,7 +82,7 @@ def get_db(transcriptome_fasta: Path, *, mmseqs_path: str) -> Path:
 def run_salmon() -> Path:
     threads = utils.get_threads()
     transcriptome = assemble_transcriptome()
-    reads = _trim_reads(config.get("R1"), config.get("R2"), threads)
+    reads = _trim_reads(config.get_path("R1"), config.get_path("R2"), threads)
 
     return _run_salmon(transcriptome, reads["r1"], reads.get("r2"), threads)
 
@@ -134,16 +134,19 @@ def _assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
     :param r2: the r2 return of trim_reads, if available.
     :return: The path to the file containing the assembled transcriptome
     """
+    assembly = utils.global_output("trinity_out_dir/Trinity.fasta")
+
     if r2 is None:
         reads = f"--single {r1}"
+        assembly /= "single.fa"
+
     else:
         reads = f"--left {r1} --right {r2}"
+        assembly /= "both.fa"
 
     memory = f"{config.get("memory")}G"
     seq_type = "fq"
     threads: int = config.get("threads")
-
-    assembly = utils.global_output("trinity_out_dir/Trinity.fasta")
 
     subprocess.run(
         f"Trinity --seqType {seq_type} {reads} --CPU {threads} --max_memory {memory} --output {assembly}",
