@@ -138,12 +138,12 @@ intoxi-cate -h
 
 ### Configuration of settings and options
 
-The pipeline expects the config file to be of the format `key: value` and to contain the following keys:
+The pipeline expects the config file to be of the format `key: value` and to contain the following keys, as listed in the tables below.
 
 #### Required keys
 
 The following table lists all configuration keys that necessary for the pipeline to run.
-Out of the group `R1`/`R2`, `transcriptome` and `proteome_fasta`, only one key is required.
+Out of the group `R1`/`R2`, `transcriptome` and `proteome_fasta`, only one key is required and `proteome_fasta` excludes the other two.
 
 | Config Key       | Description                                                                                                                                                                                                                                                                                   | 
 |:-----------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -163,7 +163,7 @@ Some options are only effective if others are set, some exclude other options.
 | `contamination_evalue`  | The e-value threshold for contamination removal using MMSeqs2.                                                                                                                                                              | 1E-5                                                           |
 | `clustering_threshold`  | The clustering threshold for MMSeqs2 in the peptide clustering step when Intoxi-Cate is run without `proteome` parameter set.                                                                                               | 0.99                                                           |                                                                                                                                    
 | `cys_pattern`           | Set to `True` if you want Intoxi-Cate to perform cysteine pattern analysis using DeTox's in-house script for that purpose.                                                                                                  | False                                                          |
-| `maxlen`                | The maximum length a section within an NA sequence may have to be considered an ORF, in nucleotides.                                                                                                                        | 30 000 000                                                     |
+| `maxlen`                | The maximum length a section within an NA sequence may have to be considered an ORF, in nucleotides.                                                                                                                        | 45 000                                                         |
 | `memory`                | Add a value to limit the maximum amount of RAM in GigaByte available to the pipeline. <br/>If not set, Intoxi-Cate will use as much as it needs up to machine limits.<br/>This value is not sanitised!                      | (none)                                                         |
 | `minlen`                | The minimum length a section within an NA sequence needs to have to be considered an ORF, in nucleotides.                                                                                                                   | 99                                                             |
 | `mmseqs_path`           | If you prefer to use an already existing MMSeqs2 installation on your system <br/>instead of the one that's installed by conda together with Intoxi-Cate, fill this setting with the path to the MMSeqs binary.             | (none)                                                         | 

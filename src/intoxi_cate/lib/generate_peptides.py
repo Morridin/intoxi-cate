@@ -60,7 +60,7 @@ def cluster_peptides(transcriptome_file: Path):
 
         frame_size: dict[str, int] = {
             "min_len": config.get("minlen", 99),
-            "max_len": config.get("maxlen", 30_000_000)
+            "max_len": config.get("maxlen", 45_000)
         }
 
         aa_sequences = _detect_orfs(nucleotide_sequences, threads=threads, mmseqs_path=mmseqs_path, **frame_size)

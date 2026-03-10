@@ -1,26 +1,30 @@
-transcriptome: test-profundiconus/t2.fasta
-output_dir: output/test-profundiconus8
-basename: profundiconus
-memory: 18 # memory in GB, might change later
-threads: 16 # logic threads, not physical cores, for clarity
+# For more information on these settings, please refer to the ReadMe file!
+proteome_fasta: # If this is set, R1, R2 and transcriptome MUST NOT be set.
 R1:
-R2: # if paired-end reads
+R2: # only set if your reads are paired-end
+transcriptome:
+toxin_db:
+basename: ""
 contaminants:
-proteome_fasta: #path/to/proteome.faa # if run in proteome mode
-toxin_db: test-profundiconus/toxins-db.fasta
-pfam_db_path:
-swissprot_db_path:
-toxins_evalue: "1e-10"
-contamination_evalue: "1e-5"
-clustering_threshold: "0.99"
+contamination_evalue: 1E-5
+clustering_threshold: 0.99
+cys_pattern: False
 maxlen: 45000
-signalp_dvalue: "0.7"
-signalp_path: software/signalp-5.0b/bin
-tmbed_model_path: software/tmbeddings
+memory: # maximum memory in GigaByte
+minlen: 99
+mmseqs_path:
+output_dir: output
+pfam_db_path:
 quant: False
-TPMthreshold: "1000"
-wolfpsort: True
-swissprot: True
-swissprot_evalue: "1e-10"
-cys_pattern: True
-mmseqs_path: software/mmseqs/bin
+repeated_aa_threshold: 5
+swissprot: False
+swissprot_evalue: 1E-10
+swissprot_db_path:
+threads: # logic threads
+tmbed_model_path:
+tmbed_use_cpu: True
+tmbed_use_gpu: True
+toxins_evalue: 1E-10
+TPMthreshold: 1000
+wolfpsort: False
+wolfPsort_path:
