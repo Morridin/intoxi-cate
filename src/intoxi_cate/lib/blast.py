@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from lib import config, utils
+from . import config, utils
 
 __all__ = ["on_contaminants", "on_toxins", "on_uniprot"]
 

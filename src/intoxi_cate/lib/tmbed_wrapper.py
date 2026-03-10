@@ -22,7 +22,7 @@ from typing import Generator, Callable
 
 import pandas as pd
 
-from lib import config, utils
+from . import config, utils
 
 __all__ = ["detect_by_structure", "run_tmbed", "parse_tmbed_predictions"]
 

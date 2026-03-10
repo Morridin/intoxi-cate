@@ -24,7 +24,7 @@ import subprocess
 from functools import cache
 from pathlib import Path
 
-from lib import utils, config
+from . import utils, config
 
 __all__ = ["assemble_transcriptome", "get_db", "run_salmon"]
 

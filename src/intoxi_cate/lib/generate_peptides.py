@@ -28,7 +28,7 @@ from pathlib import Path
 import pandas as pd
 from Bio import SeqIO
 
-from lib import config, utils, blast, transcriptome
+from . import config, utils, blast, transcriptome
 
 __all__ = ["cluster_peptides"]
 

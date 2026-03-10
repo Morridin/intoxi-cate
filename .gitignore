@@ -3,3 +3,4 @@ software/
 .idea/
 output/
 fixtures/
+build/

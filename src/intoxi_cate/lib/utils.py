@@ -23,7 +23,7 @@ from typing import Generator
 import pandas as pd
 from Bio import SeqIO
 
-from lib import config
+from . import config
 
 __all__ = ["fasta_to_dataframe", "global_output", "get_cys_pattern", "get_threads"]
 

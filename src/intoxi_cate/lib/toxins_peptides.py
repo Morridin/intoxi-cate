@@ -22,7 +22,7 @@ from typing import Generator
 import pandas as pd
 from Bio import SeqIO
 
-from lib import config, utils, tmbed_wrapper
+from . import config, utils, tmbed_wrapper
 
 __all__ = ["retrieve_candidate_toxins"]
 
