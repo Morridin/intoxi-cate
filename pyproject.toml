@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=82.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intoxi-cate"
+version = "0.1.0"
+authors = [
+    { name = "Paul Zanner", email = "go56fuq@tum.de" },
+]
+description = "An improved, pythonic version of the DeToX pipeline for de novo toxin annotation."
+readme = "readme.md"
+requires-python = "==3.12"
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+dependencies = ["tmbed", "transformers==4.34.0", "requests", "pandas", "pyyaml", "biopython", "torch"]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+
+[project.urls]
+Homepage="https://github.com/Morridin/intoxi-cate"
+
+[project.scripts]
+intoxi-cate="intoxi_cate.cli:run"
