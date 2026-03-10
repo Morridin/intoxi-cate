@@ -62,7 +62,7 @@ def _run_hmmer(fasta_file: Path, pfam_db: Path) -> Path:
     log_out = utils.global_output(config.get("basename") + ".log")
     domain_tbl_out = utils.global_output(config.get("basename") + ".domtblout")
 
-    threads = config.get("threads")
+    threads = utils.get_threads()
 
     subprocess.run(
         f"hmmsearch --cut_ga --cpu {threads} --domtblout {domain_tbl_out} -o {log_out} {pfam_db} {fasta_file}",

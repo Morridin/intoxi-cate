@@ -134,24 +134,25 @@ def _assemble_transcriptome(r1: Path, r2: Path | None) -> Path:
     :param r2: the r2 return of trim_reads, if available.
     :return: The path to the file containing the assembled transcriptome
     """
-    assembly = utils.global_output("trinity_out_dir/Trinity.fasta")
-
     if r2 is None:
         reads = f"--single {r1}"
-        assembly /= "single.fa"
-
     else:
         reads = f"--left {r1} --right {r2}"
-        assembly /= "both.fa"
 
-    memory = f"{config.get("memory")}G"
+    assembly = utils.global_output("trinity_out_dir/Trinity.fasta")
+    memory = f"--max_memory {config.get("memory")}G " if config.get("memory") is not None else ""
     seq_type = "fq"
-    threads: int = config.get("threads")
+    threads: int = utils.get_threads()
 
     subprocess.run(
-        f"Trinity --seqType {seq_type} {reads} --CPU {threads} --max_memory {memory} --output {assembly}",
+        f"Trinity --seqType {seq_type} {reads} --CPU {threads} {memory}--output {assembly}",
         shell=True
     )
+
+    if r2 is None:
+        assembly /= "single.fa"
+    else:
+        assembly /= "both.fa"
 
     return assembly
 
