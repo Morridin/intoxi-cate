@@ -93,8 +93,8 @@ def on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
 
 # ============================ Private functions ============================= #
 class SearchType(IntEnum):
-    NUCLEOTIDE = 1,
-    AMINO_ACID = 3
+    AMINO_ACID = 1,
+    NUCLEOTIDE = 3,
 
 
 def _run(aa_sequences: Path, db: Path, e_value: float, search_type: SearchType,
