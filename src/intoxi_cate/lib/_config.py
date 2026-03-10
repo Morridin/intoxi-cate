@@ -56,7 +56,7 @@ class Config:
         "tmbed_use_cpu": True,
         "tmbed_use_gpu": True,
         "toxins_evalue": 1E-10,
-        "TPMthreshold": 1000,
+        "TPMthreshold": 1000.0,
         "wolfpsort": False,
         "wolfPsort_path": _WOLF_PSORT_INSTALL_DIR / "bin" / "runWolfPsortSummary"
     }

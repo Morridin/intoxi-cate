@@ -105,6 +105,14 @@ def validate_args(config: Config) -> None:
               file=sys.stderr)
         exit(2)
 
+    tpm_threshold = config.get("TPMthreshold")
+    if tpm_threshold is not None:
+        try:
+            config.config["TPMthreshold"] = float(tpm_threshold)
+        except ValueError:
+            print("TPMthreshold must be a real number!", file=sys.stderr)
+            exit(2)
+
 
 def handle_wolf_psort(wolf_psort_path: Path = None) -> Path:
     """
@@ -339,8 +347,8 @@ def parse_args() -> Config:
     config_group.add_argument(
         "--TPMthreshold",
         help="The TPM threshold for a sequence to be flagged.",
-        metavar="INT",
-        type=int
+        metavar="FLOAT",
+        type=float
     )
     config_group.add_argument(
         "--wolfpsort",

@@ -63,7 +63,7 @@ def build_output_table(candidate_toxins: Path, hmmer: pd.DataFrame, toxins_blast
 
     final_output = utils.global_output(config.get("basename") + "_toxins.tsv")
 
-    tpm_threshold = config.get("TPMthreshold", 1000)
+    tpm_threshold = config.get("TPMthreshold", 1000.0)
 
     cys_pattern = config.get("cys_pattern", False)
 
@@ -130,7 +130,7 @@ def _find_repetition(size: int, seq: str, threshold: int) -> list:
 def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_result: pd.DataFrame,
                         repeated_aa: pd.DataFrame, candidate_toxins: Path, signal_peptides: pd.DataFrame,
                         uniprot_blast_result: pd.DataFrame = None, salmon_result: Path = None,
-                        wolf_p_sort: pd.DataFrame = None, *, tpm_threshold: int,
+                        wolf_p_sort: pd.DataFrame = None, *, tpm_threshold: float,
                         cys_pattern: bool):
     """
     this rule merges the tabular output of the other rules and merges it in a single table.
@@ -191,7 +191,7 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
         df.loc[mask, "Rating"] += "C"
 
     if 'TPM' in df.columns:
-        mask = df["TPM"].astype(float) >= tpm_threshold
+        mask = df["TPM"].astype(int) >= tpm_threshold
         df.loc[mask, "Rating"] += "T"
 
     mask = df["pfam domains"].notna()
