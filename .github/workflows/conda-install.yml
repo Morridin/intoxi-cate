@@ -1,0 +1,24 @@
+name: Conda Install
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  conda-install:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Micromamba & Intoxi-Cate
+      uses: mamba-org/setup-micromamba@v2.0.6
+      with:
+        environment-file: intoxi-cate.yaml
+        post-cleanup: 'all'
+    
+    - name: Verify Intoxi-Cate
+      shell: bash -l {0}
+      run: |
+        intoxi-cate --help
