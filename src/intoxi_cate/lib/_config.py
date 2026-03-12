@@ -80,7 +80,8 @@ class Config:
     def get(self, key: str, default: Optional[T] = None) -> Optional[T]:
         """
         This function searches the config file given by config_path and returns the value associated with key in this file.
-        If key is not found in config_path, or is an empty string, None is returned.
+        If key is not found in config_path, or is an empty string the default value is returned.
+        If no default is set, None is returned.
         Exception to this is an empty string as default value which is returned if else None had been returned.
 
         :param default: A value to return if `key` is not found in config_path
@@ -89,8 +90,8 @@ class Config:
         """
         output = self.config.get(key, default)
 
-        if output == "" != default:
-            return None
+        if output is None or output == "":
+            return default
 
         return output
 
@@ -104,7 +105,7 @@ class Config:
         :return: A path to a transformable value found in the config file, if any, else None.
         """
         output = self.config.get(key)
-        if type(output) != str:
+        if type(output) not in [str, Path]:
             return None
         return Path(output.strip())
 
