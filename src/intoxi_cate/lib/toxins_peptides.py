@@ -1,4 +1,5 @@
 # Copyright 2026 Paul Zanner
+# Adopted and redesigned from DeToX pipeline, Ringeval et al., 2024, https://doi.org/10.1093/bib/bbae094
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
