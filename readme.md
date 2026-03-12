@@ -84,24 +84,24 @@ Some notes on that guide:
 
 As final step installing Intoxi-Cate, you need to create a conda-environment.
 
-In order to create the environment, please run
+In order to create the environment, please first switch to the directory into which Intoxi-Cate was downloaded.
+Git will most likely download Intoxi-Cate into a directory `intoxi-cate` in the current directory, and report this as very first line on the screen.
 
+Once you are in the correct directory, please run
 ```bash
 conda env create -f intoxi-cate.yaml
 ```
 
 This will likely take some time (expect 5 - 15 minutes).
-If you want to speed this up, if you have mamba available on your machine (included in miniforge) by running
-
+If you want to speed this up, check if you have mamba available on your machine (included in miniforge) by running
 ```bash
 mamba --version
 ```
-
 As previously when checking for the conda availability, you have mamba available if you see a version number.
 
-If mamba is available, please replace `conda` in the command above with `mamba` to speed up the proccess.
+If mamba is available, you can replace `conda` in the environment creation command above with `mamba`.
 
-Now, you're ready to use the pipeline!
+Now, once the command has successfully finished, you're ready to use Intoxi-Cate!
 
 ## Usage
 
@@ -111,7 +111,7 @@ Now, you're ready to use the pipeline!
    ```bash
    conda activate intoxi-cate
    ```
-2. Copy `config.yaml` to your working directory and populate it with required information.
+2. Copy `config.yaml` to your working directory and populate it with the required information.
 
 ### Run Pipeline
 
@@ -123,7 +123,7 @@ intoxi-cate
 
 You can specify a `--config` option pointing to an alternative location of a config file other than `config.yaml` in the
 current directory.
-Also, you can specify more or less any of the options from within the config file as parameters.
+Also, you can specify all the options from within the config file as parameters.
 Just add two dashes in front of the config key.
 
 For a complete overview of all available options, run
@@ -204,6 +204,7 @@ searching for the analysis of massive data sets. In: Nature Biotechnology. 2017,
 <p id="cite3">[3] BERNHOFER, Michael and Burkhard ROST, 2022. TMbed: transmembrane proteins predicted through language 
 model embeddings. In: BMC Bioinformatics. 2022, vol. 23, no. 1, p. 326. DOI 
 <a href="https://doi.org/10.1186/s12859-022-04873-x">DOI 10.1186/s12859-022-04873-x</a>.</p>
+
 
 
 
