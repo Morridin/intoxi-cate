@@ -1,0 +1,24 @@
+name: Test Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Micromamba
+      uses: mamba-org/setup-micromamba@v2.0.6
+      with:
+        environment-file: intoxi-cate.yaml
+        post-cleanup: 'all'
+    
+    - name: Verify build
+      shell: bash -l {0}
+      run: |
+        intoxi-cate --help
