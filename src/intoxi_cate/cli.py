@@ -369,14 +369,15 @@ def parse_args() -> Config:
 
     del args.config
 
-    for key, value in vars(config).items():
-        config.config[key] = value
+    for key, value in vars(args).items():
+        if value is not None:
+            config.config[key] = value
 
     validate_args(config)
     
     if config.get("wolfpsort"):
         config.config["wolfPsort_path"] = handle_wolf_psort(config.get_path("wolfPsort_path"))
-        
+
     return config
 
 def app(config: Config):
