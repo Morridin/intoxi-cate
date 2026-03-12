@@ -70,14 +70,15 @@ The link points the Linux version of the guide as Linux is the only supported pl
 Some notes on that guide:
 
 - In case of miniforge, you can't verify the installer checksum as miniforge doesn't offer a fingerprint to compare to.
-- Instead of executing step 5 as in the guide, you can instead run the following command, if your shell is bash:
+- Instead of executing step 5 as in the guide, you can run the following command, if your shell is bash:
   ```bash
   source ~/.bashrc
   ```
-- If you don't like to always have a conda environment activated, we suggest you run
+- If you don't like to always have a conda environment activated, you can run
   ```bash
   conda config --set auto_activate_base false
   ```
+  to deactivate this behaviour.
 
 #### 2.3 Create conda environment
 
@@ -203,5 +204,6 @@ searching for the analysis of massive data sets. In: Nature Biotechnology. 2017,
 <p id="cite3">[3] BERNHOFER, Michael and Burkhard ROST, 2022. TMbed: transmembrane proteins predicted through language 
 model embeddings. In: BMC Bioinformatics. 2022, vol. 23, no. 1, p. 326. DOI 
 <a href="https://doi.org/10.1186/s12859-022-04873-x">DOI 10.1186/s12859-022-04873-x</a>.</p>
+
 
 
