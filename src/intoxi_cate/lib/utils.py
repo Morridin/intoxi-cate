@@ -61,7 +61,7 @@ def global_output(path: str | Path) -> Path:
     if type(path) == str:
         path = path.strip()
 
-    output_dir = Path(config.get("output_dir", "").strip())
+    output_dir = config.get_path("output_dir")
     if not output_dir.exists():
         output_dir.mkdir(parents=True, exist_ok=True)
 

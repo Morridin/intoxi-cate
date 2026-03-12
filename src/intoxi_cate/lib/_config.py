@@ -105,9 +105,10 @@ class Config:
         :return: A path to a transformable value found in the config file, if any, else None.
         """
         output = self.config.get(key)
-        if type(output) not in [str, Path]:
-            return None
-        return Path(output.strip())
-
+        if isinstance(output, Path):
+            return output
+        if isinstance(output, str):
+            return Path(output.strip())
+        return None
 
 config = Config()
