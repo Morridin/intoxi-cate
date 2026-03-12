@@ -16,6 +16,7 @@ dependencies:
   - mmseqs2
   - pip
   - pip:
+    - hf-transfer
     - transformers == 4.34.0
     - git+https://github.com/BernhoferM/TMbed.git
     - .
