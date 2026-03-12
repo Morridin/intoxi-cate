@@ -1,4 +1,5 @@
 # Intoxi-Cate
+[![Conda Install](https://github.com/Morridin/intoxi-cate/actions/workflows/test-build.yml/badge.svg)](https://github.com/Morridin/intoxi-cate/actions/workflows/conda-install.yml)
 
 Intoxi-Cate is an improved version of the DeToX pipeline [[1](#cite1)] by Ringeval et al.
 
@@ -202,3 +203,4 @@ searching for the analysis of massive data sets. In: Nature Biotechnology. 2017,
 <p id="cite3">[3] BERNHOFER, Michael and Burkhard ROST, 2022. TMbed: transmembrane proteins predicted through language 
 model embeddings. In: BMC Bioinformatics. 2022, vol. 23, no. 1, p. 326. DOI 
 <a href="https://doi.org/10.1186/s12859-022-04873-x">DOI 10.1186/s12859-022-04873-x</a>.</p>
+
