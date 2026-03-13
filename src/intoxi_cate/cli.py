@@ -172,7 +172,7 @@ def parse_args() -> Config:
     general_group.add_argument(
         "-V", "--version",
         action="version",
-        version="%(prog)s 0.1.0"
+        version="%(prog)s 0.1.2"
     )
     general_group.add_argument(
         "-c", "--config",
