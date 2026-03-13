@@ -398,7 +398,7 @@ def app(config: Config):
     hmmer_result = hmmer(toxin_candidates)
 
     if config.get("swissprot", False):
-        uniprot_blast_result = blast.on_uniprot(toxin_candidates)
+        uniprot_blast_result = blast.on_uniprot(toxin_candidates).reset_index()
     else:
         uniprot_blast_result = None
 
@@ -413,7 +413,7 @@ def app(config: Config):
         f"#                              Pipeline complete                               #\n"
         f"# ============================================================================ #\n"
         f"The final pipeline output can be found under {
-        build_output_table(toxin_candidates, hmmer_result, toxins_blast_result.reset_index(), signal_peptides, uniprot_blast_result.reset_index(), salmon_result)
+        build_output_table(toxin_candidates, hmmer_result, toxins_blast_result.reset_index(), signal_peptides, uniprot_blast_result, salmon_result)
         }"
     )
 
