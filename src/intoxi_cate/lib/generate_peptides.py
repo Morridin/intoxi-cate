@@ -211,7 +211,6 @@ def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memor
         "--split-memory-limit", f"{math.floor(max_memory * 0.8)}G",
     ]  # The -d 40 flag is just for display purposes and thus not relevant for us.
 
-    print(command)
-    subprocess.run(command)
+    subprocess.run(command, check=True)
 
     return output_prefix.with_name(output_prefix.name + "_rep_seq.fasta")
