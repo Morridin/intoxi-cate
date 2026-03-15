@@ -118,7 +118,7 @@ def _detect_orfs(nucleotide_sequences: Path, *, min_len=99, max_len=30_000_000, 
         "--create-lookup", "1",
         "--threads", f"{threads}"
     ]
-    subprocess.run(command)
+    subprocess.run(command, check=True)
 
     with tempfile.NamedTemporaryFile(suffix=".faa", delete_on_close=False) as temp:
         command = [
@@ -126,7 +126,7 @@ def _detect_orfs(nucleotide_sequences: Path, *, min_len=99, max_len=30_000_000, 
             orfs_db,
             temp.name
         ]
-        subprocess.run(command)
+        subprocess.run(command, check=True)
 
         temp.seek(0)
         counter = 0
@@ -140,11 +140,15 @@ def _detect_orfs(nucleotide_sequences: Path, *, min_len=99, max_len=30_000_000, 
             dtype=str
         )
 
+        id_map = dict(zip(target["id"], target["seq_id"]))
+
         with open(orfs_fasta, "w") as result:
             for seq in SeqIO.parse(temp.name, "fasta"):
                 if "X" in seq.seq:
                     continue
-                seq_id = target[target["id"] == seq.id]["seq_id"].iloc[0]
+                # Every sequence in the MMSeqs2 output FASTA either has a corresponding original (read) ID or the MMSeqs database is broken.
+                # Hence, the program shall fail in this case.
+                seq_id = id_map[seq.id]
                 if seq.id == previous_id:
                     counter += 1
                 else:
