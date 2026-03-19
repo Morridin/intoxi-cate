@@ -12,6 +12,7 @@ cys_pattern: False
 maxlen: 45000
 memory: # maximum memory in GigaByte
 minlen: 99
+mmseqs_max_sequence_coverage: 0.8
 mmseqs_path:
 output_dir: output
 pfam_db_path:

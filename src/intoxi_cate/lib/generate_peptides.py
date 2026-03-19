@@ -178,12 +178,12 @@ def _drop_x(orfs_db: Path) -> Path:
     return drop_sequence
 
 
-def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memory: int, threads: int, *,
+def _cluster_peptides(aa_sequences: Path, min_sequence_identity: float, max_memory: int, threads: int, *,
                       mmseqs_path: str) -> Path:
     """
     Runs MMSeqs LinClust on predicted peptides to remove excess redundancy
     :param aa_sequences: The path to an faa file holding nucleotide sequences.
-    :param clustering_threshold: The sequence identity threshold that guides cluster generation.
+    :param min_sequence_identity: The sequence identity threshold that guides cluster generation.
         Sequences that are sufficiently similar to pass this threshold are clustered together.
     :param max_memory: The maximum amount of RAM that this function may use, in Gigabyte (GB)
     :param threads: The number of threads available to this function
@@ -193,6 +193,8 @@ def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memor
     output_prefix = utils.global_output(config.get('basename'))  # MMSeqs adds file endings on their own.
     tmp_dir = utils.global_output("mmseqs")
 
+    clustering_threshold = config.get('mmseqs_max_sequence_coverage', 0.8)
+
     command = [
         mmseqs_path, "easy-linclust",
         aa_sequences,  # Input FASTA
@@ -201,11 +203,13 @@ def _cluster_peptides(aa_sequences: Path, clustering_threshold: float, max_memor
         # 1 TSV mapping each seq ID to the ID of the cluster representative (..._cluster.tsv),
         # 1 FASTA containing only the cluster representatives (..._rep_seq.fasta))
         tmp_dir,
-        "--min-seq-id", f"{clustering_threshold}",
+        "--min-seq-id", f"{min_sequence_identity}",
         "--threads", f"{threads}",
         "--cluster-mode", "2",  # Simulates CD-Hit's approach to clustering.
         "--dbtype", "1",  # As we only expect AA sequences to arrive in this function, we can guide this a little bit.
         "--createdb-mode", "0",
+        "--cov-mode", "1",
+        "-c", f"{clustering_threshold}",
         # As the input may contain multi-line sequences, this is safer (also, using more disk space is cheaper than rerunning the pipeline)
         "--remove-tmp-files", "false",  # Helps debugging. Or just with understanding what the pipeline does.
         "--split-memory-limit", f"{math.floor(max_memory * 0.8)}G",
