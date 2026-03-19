@@ -125,7 +125,6 @@ def _run(aa_sequences: Path, db: Path, e_value: float, search_type: SearchType,
             "-e", f"{e_value}",  # Replaces --evalue
             "--max-accept", "1",  # Replaces --max-target-seqs
             "--format-output", "query,target,pident,evalue",
-            "--alignment-mode", "2",
             # replaces the --outfmt param (output is already in tabular format by default)
             "--threads", f"{threads}",
             "--split-memory-limit", f"{math.floor(memory * 0.8)}G",
