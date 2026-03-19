@@ -193,10 +193,10 @@ def _cluster_peptides(aa_sequences: Path, min_sequence_identity: float, max_memo
     output_prefix = utils.global_output(config.get('basename'))  # MMSeqs adds file endings on their own.
     tmp_dir = utils.global_output("mmseqs")
 
-    clustering_threshold = config.get('mmseqs_max_sequence_coverage', 0.8)
+    clustering_threshold = config.get('mmseqs_sequence_coverage', 0)
 
     command = [
-        mmseqs_path, "easy-linclust",
+        mmseqs_path, "easy-cluster",
         aa_sequences,  # Input FASTA
         output_prefix,  # Prefix that is prepended to all the output files (which are 3:
         # 1 FASTA with all seq ids (..._all_seqs.fasta),
@@ -204,13 +204,15 @@ def _cluster_peptides(aa_sequences: Path, min_sequence_identity: float, max_memo
         # 1 FASTA containing only the cluster representatives (..._rep_seq.fasta))
         tmp_dir,
         "--min-seq-id", f"{min_sequence_identity}",
+        "--seq-id-mode", "1",
         "--threads", f"{threads}",
+        "--alignment-mode", "2",
         "--cluster-mode", "2",  # Simulates CD-Hit's approach to clustering.
         "--dbtype", "1",  # As we only expect AA sequences to arrive in this function, we can guide this a little bit.
         "--createdb-mode", "0",
+        # As the input may contain multi-line sequences, this is safer (also, using more disk space is cheaper than rerunning the pipeline)
         "--cov-mode", "1",
         "-c", f"{clustering_threshold}",
-        # As the input may contain multi-line sequences, this is safer (also, using more disk space is cheaper than rerunning the pipeline)
         "--remove-tmp-files", "false",  # Helps debugging. Or just with understanding what the pipeline does.
         "--split-memory-limit", f"{math.floor(max_memory * 0.8)}G",
     ]  # The -d 40 flag is just for display purposes and thus not relevant for us.

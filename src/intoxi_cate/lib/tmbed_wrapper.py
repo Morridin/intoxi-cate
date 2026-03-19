@@ -96,6 +96,7 @@ def parse_tmbed_predictions(file: Path | str, f: Callable[[Path | str], Generato
 
 # ============================ Private functions ============================= #
 def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict[str, str], None, None]:
+    sp_threshold = config.get("signalpeptide_minlen")
     with open(file) as f:
         seq_id = ""
         sequence = ""
@@ -110,7 +111,7 @@ def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict
                 sequence = line.strip()
             if index == 2:
                 diff = len(line) - len(line.lstrip("S"))
-                if diff > 0:
+                if diff >= sp_threshold:
                     yield {
                         "ID": seq_id,
                         "Signal Peptide Predicted": True,

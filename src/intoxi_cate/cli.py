@@ -267,6 +267,12 @@ def parse_args() -> Config:
         type=int
     )
     config_group.add_argument(
+        "--mmseqs_max_sequence_coverage",
+        help="The sequence coverage threshold above which an amino acid sequence is clustered to another.",
+        metavar="FLOAT",
+        type=float
+    )
+    config_group.add_argument(
         "--mmseqs_path",
         help="The path to an alternative MMSeqs installation",
         metavar="PATH",
@@ -293,6 +299,12 @@ def parse_args() -> Config:
     config_group.add_argument(
         "--repeated_aa_threshold",
         help="The number of amino acid repetitions required for a sequence to be flagged.",
+        metavar="INT",
+        type=int
+    )
+    config_group.add_argument(
+        "--signalpeptide_minlen",
+        help="Sequences with signal peptide predictions below this length are considered false positives and discarded.",
         metavar="INT",
         type=int
     )
