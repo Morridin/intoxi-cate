@@ -116,5 +116,6 @@ def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict
                         "ID": seq_id,
                         "Signal Peptide Predicted": True,
                         "Raw Prediction": line.strip(),
+                        "cutsite": diff,
                         "Mature Peptide": sequence[diff:]
                     }
