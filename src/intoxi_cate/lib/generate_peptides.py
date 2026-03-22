@@ -204,9 +204,9 @@ def _cluster_peptides(aa_sequences: Path, min_sequence_identity: float, max_memo
         # 1 FASTA containing only the cluster representatives (..._rep_seq.fasta))
         tmp_dir,
         "--min-seq-id", f"{min_sequence_identity}",
-        "--seq-id-mode", "1",
+        "--seq-id-mode", "0",
         "--threads", f"{threads}",
-        "--alignment-mode", "2",
+        "--alignment-mode", "3",
         "--cluster-mode", "2",  # Simulates CD-Hit's approach to clustering.
         "--dbtype", "1",  # As we only expect AA sequences to arrive in this function, we can guide this a little bit.
         "--createdb-mode", "0",
