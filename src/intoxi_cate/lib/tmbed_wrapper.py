@@ -24,7 +24,7 @@ import pandas as pd
 
 from . import config, utils
 
-__all__ = ["detect_by_structure", "run_tmbed", "parse_tmbed_predictions"]
+__all__ = ["detect_by_structure"]
 
 
 # ============================= Public functions ============================= #
@@ -32,11 +32,14 @@ def detect_by_structure(clustered_peptides: Path) -> pd.DataFrame:
     """
     This function runs tmbed, collects the results and returns them as versatile DataFrame.
     :param clustered_peptides: The path to a FASTA file containing the amino acid sequences on which TMbed shall run.
-    :param use_gpu: If you don't want to utilise the GPU to speed up the prediction process, set to False.
-    :param cpu_fallback: If you want the step fail instead of falling back to the CPU, set to False.
     :return: A DataFrame containing the following information: an ID column holding the sequence ID,
-    the sequence itself in a second column, and the mature peptide (the peptide without the signal peptide) in a
-    third column. The DataFrame only contains such sequences that TMbed could identify as featuring a signal peptide.
+    the sequence itself in a second column ("Sequence"), and the mature peptide (the peptide without the signal peptide) in a
+    third column ("Mature Peptide"). Next, it contains a boolean column "Signal Peptide Predicted" that is `True` if TMbed
+    predicted a signal peptide for the sequence and the predicted signal peptide is longer than the configured cut-off value.
+    Also, the DataFrame contains a string column "Raw Prediction" containing TMbed's prediction string for the sequence,
+    and finally, the numerical, 0-based position of the cleavage site along the sequence.
+    The DataFrame contains all input sequences. You can filter for the sequences with signal peptides by selecting
+    via the "Signal Peptide Predicted" column.
     """
     model_dir = config.get_path("tmbed_model_path")
     use_cpu = config.get("tmbed_use_cpu", True)
@@ -44,13 +47,14 @@ def detect_by_structure(clustered_peptides: Path) -> pd.DataFrame:
     threads = utils.get_threads()
 
     with tempfile.NamedTemporaryFile(suffix=".tmbed", delete_on_close=False) as output_file:
-        run_tmbed(clustered_peptides, output_file.name, use_gpu, use_cpu, threads, model_dir)
+        _run_tmbed(clustered_peptides, output_file.name, use_gpu, use_cpu, threads, model_dir)
 
-        return parse_tmbed_predictions(output_file.name, _generate_tmbed_pred_df_rows_signal_only)
+        return pd.DataFrame(_generate_tmbed_pred_df_rows_signal_only(output_file.name))
 
 
-def run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fallback: bool, threads: int,
-              model_dir: Path | None) -> None:
+# ============================ Private functions ============================= #
+def _run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cpu_fallback: bool, threads: int,
+               model_dir: Path | None) -> None:
     """
     The actual runner for TMbed. Assembles the command from the given parameters and runs TMbed.
     :param clustered_peptides: A Path pointing to a FASTA file.
@@ -84,18 +88,13 @@ def run_tmbed(clustered_peptides: Path, output_file_name: str, use_gpu: bool, cp
     subprocess.run(command, check=True)
 
 
-def parse_tmbed_predictions(file: Path | str, f: Callable[[Path | str], Generator[dict, None, None]]) -> pd.DataFrame:
-    """
-    Produces a DataFrame from a TMbed predictions file.
-    :param file: The path to the predictions file.
-    :param f: Determines how the file contents are filtered while parsing.
-    :return: A pandas DataFrame containing the IDs and mature peptide aa sequences of only those peptides that contain a signal peptide sequence.
-    """
-    return pd.DataFrame(f(file))
-
-
-# ============================ Private functions ============================= #
 def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict[str, str], None, None]:
+    """
+    This Generator function yields DataFrame rows while iterating over a FASTA-like file that contains TMbed prediction output.
+    :param file: The path to the file out of which to generate the DataFrame rows.
+    :returns: A Generator yielding dictionaries with the keys "ID", "Sequence", "Signal Peptide Predicted", "Raw Prediction",
+        "Mature Peptide" and "cutsite", corresponding to the DataFrame columns desscribed in `detect_by_structure`.
+    """
     sp_threshold = config.get("signalpeptide_minlen")
     with open(file) as f:
         seq_id = ""
@@ -106,7 +105,12 @@ def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict
             if not line:
                 break
             if index == 0:
-                seq_id = utils.get_sequence_id(line)
+                if not line.startswith(">"):
+                    raise ValueError("Malformatted prediction file, expected '>' at the beginning of ID line.")
+                seq_id, _, _ = line.lstrip(">").partition(" ")
+                seq_id = seq_id.strip()
+                if not seq_id:
+                    raise ValueError("Malformatted prediction file, expected '>' at the end of ID line.")
             if index == 1:
                 sequence = line.strip()
             if index == 2:
@@ -114,8 +118,18 @@ def _generate_tmbed_pred_df_rows_signal_only(file: Path | str) -> Generator[dict
                 if diff >= sp_threshold:
                     yield {
                         "ID": seq_id,
+                        "Sequence": sequence,
                         "Signal Peptide Predicted": True,
                         "Raw Prediction": line.strip(),
+                        "Mature Peptide": sequence[diff:],
                         "cutsite": diff,
-                        "Mature Peptide": sequence[diff:]
+                    }
+                else:
+                    yield {
+                        "ID": seq_id,
+                        "Sequence": sequence,
+                        "Signal Peptide Predicted": False,
+                        "Raw Prediction": line.strip(),
+                        "Mature Peptide": None,
+                        "cutsite": None,
                     }

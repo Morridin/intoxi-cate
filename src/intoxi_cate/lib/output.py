@@ -76,34 +76,18 @@ def build_output_table(candidate_toxins: Path, hmmer: pd.DataFrame, toxins_blast
 
 
 # ============================ Private functions ============================= #
-def _run_wolf_psort(candidate_toxins: Path) -> pd.DataFrame:
-    """
-    Runs wolfpsort on secreted peptides inferred by TMbed
-    :param candidate_toxins: FASTA file
-    :return: DataFrame with results.
-    """
-    wolf_p_sort_path = config.get_path("wolfPsort_path") or Path("./software/WoLFPSort/bin/runWolfPsortSummary")
-    awk = "awk '{print $1\"\t\"$2}'"
-
-    with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as output:
-        subprocess.run(
-            f"{wolf_p_sort_path} animal < {candidate_toxins} | {awk} > {output.name}",
-            shell=True
-        )
-        return pd.read_csv(output.name, sep="\t", header=None, names=["ID", "WoLFPSort Localisation"])
-
-
 def _detect_repeated_aa(candidate_toxins: Path, threshold: int) -> pd.DataFrame:
     """
     This rule looks at the fasta aminoacid sequences in input and produces a table.
     The table reports whether some kind of repeated pattern is found in the sequences (up to 3AA long).
-    The default threshold for repetition is 5.
     The input is processed with biopython
-    :param candidate_toxins:
-    :param threshold:
-    :return:
+    :param candidate_toxins: A path to a FASTA file containing the pipeline's toxin candidates.
+    :param threshold: The number of repetitions for a sequence to be flagged as containing repetitions. Default is 5.
+    :return: A DataFrame consisting of the Columns: "ID" (str, sequence ID), "Sequence" (str, amino acid sequence),
+        "RepeatsTypes" (str, comma-separated list of the repeated amino acid patterns),
+        "RepeatsLengths" (str, comma-separated list of the actual repetitions of the pattern).
     """
-    secreted = utils.fasta_to_dataframe(f"{candidate_toxins}")
+    secreted = utils.fasta_to_dataframe(candidate_toxins)
     secreted["Repeats1"] = secreted["Sequence"].apply(lambda s: _find_repetition(1, s, threshold))
     secreted["Repeats2"] = secreted["Sequence"].apply(lambda s: _find_repetition(2, s, threshold))
     secreted["Repeats3"] = secreted["Sequence"].apply(lambda s: _find_repetition(3, s, threshold))
@@ -126,6 +110,46 @@ def _find_repetition(size: int, seq: str, threshold: int) -> list:
             if int(nbRep) >= threshold:
                 repetition.append((elem, nbRep))
     return repetition
+
+
+def _get_cys_pattern(seq: str) -> str | None:
+    """
+    Retrieves cysteine patterns within an aa sequence.
+    :param seq: A string encoding a sequence of amino acids.
+    :return: The cysteine pattern, if any or None else.
+    """
+    pattern = ""
+    status = False
+    if isinstance(seq, str) and seq.strip() and seq.count('C') >= 4:
+        for char in seq:
+            if char == "C":
+                pattern += "C"
+                status = True
+            elif status:
+                pattern += "-"
+                status = False
+        if pattern[-1] == "-":
+            pattern = pattern[0:-1]
+    if pattern == "":
+        pattern = None
+    return pattern
+
+
+def _run_wolf_psort(candidate_toxins: Path) -> pd.DataFrame:
+    """
+    Runs wolfpsort on secreted peptides inferred by TMbed
+    :param candidate_toxins: FASTA file
+    :return: DataFrame with results.
+    """
+    wolf_p_sort_path = config.get_path("wolfPsort_path") or Path("./software/WoLFPSort/bin/runWolfPsortSummary")
+    awk = "awk '{print $1\"\t\"$2}'"
+
+    with tempfile.NamedTemporaryFile(suffix=".tsv", delete_on_close=False) as output:
+        subprocess.run(
+            f"{wolf_p_sort_path} animal < {candidate_toxins} | {awk} > {output.name}",
+            shell=True
+        )
+        return pd.read_csv(output.name, sep="\t", header=None, names=["ID", "WoLFPSort Localisation"])
 
 
 def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_result: pd.DataFrame,
@@ -156,7 +180,7 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
     extra = [x for x in (wolf_p_sort, hmmer, toxins_blast_result, uniprot_blast_result, repeated_aa) if x is not None]
 
     seq_df = utils.fasta_to_dataframe(candidate_toxins)
-    df = seq_df.merge(signal_peptides, on="ID", how="left")
+    df = seq_df.merge(signal_peptides.drop("Sequence", axis=1, errors="ignore"), on="ID", how="left")
 
     for dfi in extra:
         if "Sequence" in dfi.columns:
@@ -167,7 +191,7 @@ def _build_output_table(output_file: Path, hmmer: pd.DataFrame, toxins_blast_res
         df = df.merge(dfi, how="left", on="ID")
 
     if cys_pattern:
-        df['Cys_pattern'] = df['Mature Peptide'].apply(lambda x: utils.get_cys_pattern(x) if pd.notna(x) else None)
+        df['Cys_pattern'] = df['Mature Peptide'].apply(lambda x: _get_cys_pattern(x) if pd.notna(x) else None)
 
     if salmon_result is not None:
         df["contig"] = df['ID'].apply(lambda x: x.split("_ORF")[0])

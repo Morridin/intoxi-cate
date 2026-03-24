@@ -72,7 +72,7 @@ def on_toxins(filtered_clustered_aa_sequences: Path) -> pd.DataFrame:
         exit(1)
 
     e_value = config.get("toxins_evalue", 1e-10)
-    columns = ["qseqid", "toxinDB_sseqid", "toxinDB_pident", "toxinDB_evalue"]
+    columns = ["ID", "toxinDB_sseqid", "toxinDB_pident", "toxinDB_evalue"]
 
     return _run(filtered_clustered_aa_sequences, db_file, e_value, SearchType.AMINO_ACID, columns)
 
@@ -87,7 +87,7 @@ def on_uniprot(toxin_candidates: Path) -> pd.DataFrame:
 
     db_file = config.get_path("swissprot_db_path") or _download_uniprot()
     e_value = config.get("swissprot_evalue", 1e-10)
-    columns = ["qseqid", "uniprot_sseqid", "uniprot_pident", "uniprot_evalue"]
+    columns = ["ID", "uniprot_sseqid", "uniprot_pident", "uniprot_evalue"]
 
     return _run(toxin_candidates, db_file, e_value, SearchType.AMINO_ACID, columns)
 
@@ -132,11 +132,12 @@ def _run(aa_sequences: Path, db: Path, e_value: float, search_type: SearchType,
         ]
         subprocess.run(command)
 
-        blast_result = pd.read_csv(result_file.name,
-                                   sep="\t",
-                                   header=None,
-                                   names=columns,
-                                   index_col=0)
+        blast_result = pd.read_csv(
+            result_file.name,
+            sep="\t",
+            header=None,
+            names=columns
+        )
     return blast_result
 
 

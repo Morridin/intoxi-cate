@@ -26,31 +26,15 @@ from Bio import SeqIO
 
 from . import config
 
-__all__ = ["fasta_to_dataframe", "global_output", "get_cys_pattern", "get_threads"]
-
-
-def _generate_fasta_records(fasta_path: Path, as_sequence: bool) -> Generator[dict[str, str], None, None] | Generator[
-    dict[str, SeqIO.SeqRecord], None, None]:
-    """
-    Yields records from a fasta file.
-    :param fasta_path: The path to the fasta file.
-    :param as_sequence: Determines if the BioPython Sequence objects are kept as such or transformed to str.
-    :return: A generator yielding dictionaries consisting of ID and Sequence key.
-    """
-    for record in SeqIO.parse(fasta_path, 'fasta'):
-        if as_sequence:
-            seq = record
-        else:
-            seq = str(record.seq)
-        yield {'ID': record.id, 'Sequence': seq}
+__all__ = ["fasta_to_dataframe", "global_output", "get_threads", "ensure_mmseqs2"]
 
 
 def fasta_to_dataframe(fasta_path, as_sequence=False):
     """
-    Transforms a fasta file to a pandas dataframe..
-    :param fasta_path: The path to the fasta file.
+    Transforms a FASTA file to a pandas DataFrame.
+    :param fasta_path: The path to the FASTA file.
     :param as_sequence: Keep the BioPython sequences as objects if true, else convert to str.
-    :return: A pandas dataframe containing the sequence data from the fasta file.
+    :return: A pandas DataFrame containing the sequence data from the FASTA file.
     """
     return pd.DataFrame(_generate_fasta_records(fasta_path, as_sequence))
 
@@ -71,29 +55,6 @@ def global_output(path: str | Path) -> Path:
     return output_dir / path
 
 
-def get_cys_pattern(seq: str) -> str | None:
-    """
-    Retrieves cysteine patterns within an aa sequence.
-    :param seq: A string encoding a sequence of amino acids.
-    :return: The cysteine pattern, if any or None else.
-    """
-    pattern = ""
-    status = False
-    if isinstance(seq, str) and seq.strip() and seq.count('C') >= 4:
-        for char in seq:
-            if char == "C":
-                pattern += "C"
-                status = True
-            elif status:
-                pattern += "-"
-                status = False
-        if pattern[-1] == "-":
-            pattern = pattern[0:-1]
-    if pattern == "":
-        pattern = None
-    return pattern
-
-
 @cache
 def get_threads() -> int:
     """
@@ -107,19 +68,6 @@ def get_threads() -> int:
 
     return threads
 
-def get_sequence_id(line: str) -> str:
-    """
-    Retrieves the Sequence ID from a FASTA/TMbed prediction file line.
-    :param line: A line starting with a caret (>) and the sequence ID following.
-    :return: The sequence ID with nothing else included.
-    """
-    if not line.startswith(">"):
-        raise ValueError("Malformatted prediction file, expected '>' at the beginning of ID line.")
-    seq_id, _, _ = line.lstrip(">").partition(" ")
-    seq_id = seq_id.strip()
-    if not seq_id:
-        raise ValueError("Malformatted prediction file, expected '>' at the end of ID line.")
-    return seq_id
 
 @cache
 def ensure_mmseqs2(default: Path = None) -> str:
@@ -129,6 +77,7 @@ def ensure_mmseqs2(default: Path = None) -> str:
     :param default: An alternative path to look for an MMSeqs installation.
     :return: A string that can be used to call MMSeqs2. If MMseqs2 could not be detected, a FileNotFoundError is raised.
     """
+
     def _check_path(mmseqs: Path | None) -> tuple[bool, Path]:
         if not mmseqs:
             return False, Path("")
@@ -159,3 +108,19 @@ def ensure_mmseqs2(default: Path = None) -> str:
     except FileNotFoundError as e:
         raise e
     return "mmseqs"
+
+
+def _generate_fasta_records(fasta_path: Path, as_sequence: bool) -> Generator[dict[str, str], None, None] | Generator[
+    dict[str, SeqIO.SeqRecord], None, None]:
+    """
+    Yields records from a fasta file.
+    :param fasta_path: The path to the fasta file.
+    :param as_sequence: Determines if the BioPython Sequence objects are kept as such or transformed to str.
+    :return: A generator yielding dictionaries consisting of ID and Sequence key.
+    """
+    for record in SeqIO.parse(fasta_path, 'fasta'):
+        if as_sequence:
+            seq = record
+        else:
+            seq = str(record.seq)
+        yield {'ID': record.id, 'Sequence': seq}

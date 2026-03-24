@@ -128,7 +128,7 @@ def handle_wolf_psort(wolf_psort_path: Path = None) -> Path:
     if wolf_psort_path == Config._DEFAULT["wolfPsort_path"]:
         if not wolf_psort_path.is_file():
             print("Downloading and installing WoLF PSORT ...")
-            wolf_psort_path.unlink(True) # Delete anything that was there before, especially if it was a directory.
+            wolf_psort_path.unlink(True)  # Delete anything that was there before, especially if it was a directory.
 
             response = requests.get(_WOLF_PSORT_GITHUB_URL)
             with tempfile.TemporaryDirectory() as t:
@@ -172,7 +172,7 @@ def parse_args() -> Config:
     general_group.add_argument(
         "-V", "--version",
         action="version",
-        version="%(prog)s 0.1.4"
+        version="%(prog)s 0.1.5"
     )
     general_group.add_argument(
         "-c", "--config",
@@ -386,11 +386,12 @@ def parse_args() -> Config:
             config.config[key] = value
 
     validate_args(config)
-    
+
     if config.get("wolfpsort"):
         config.config["wolfPsort_path"] = handle_wolf_psort(config.get_path("wolfPsort_path"))
 
     return config
+
 
 def app(config: Config):
     """
@@ -403,14 +404,14 @@ def app(config: Config):
 
     toxins_blast_result = blast.on_toxins(clustered_peptides)
 
-    signal_peptides = detect_by_structure(clustered_peptides).set_index("ID")
+    signal_peptides = detect_by_structure(clustered_peptides)
 
-    toxin_candidates = retrieve_candidate_toxins(clustered_peptides, toxins_blast_result, signal_peptides)
+    toxin_candidates = retrieve_candidate_toxins(signal_peptides, toxins_blast_result)
 
     hmmer_result = hmmer(toxin_candidates)
 
     if config.get("swissprot", False):
-        uniprot_blast_result = blast.on_uniprot(toxin_candidates).reset_index()
+        uniprot_blast_result = blast.on_uniprot(toxin_candidates)
     else:
         uniprot_blast_result = None
 
@@ -425,9 +426,17 @@ def app(config: Config):
         f"#                              Pipeline complete                               #\n"
         f"# ============================================================================ #\n"
         f"The final pipeline output can be found under {
-        build_output_table(toxin_candidates, hmmer_result, toxins_blast_result.reset_index(), signal_peptides, uniprot_blast_result, salmon_result)
+        build_output_table(
+            toxin_candidates, 
+            hmmer_result, 
+            toxins_blast_result, 
+            signal_peptides.set_index("ID"), 
+            uniprot_blast_result, 
+            salmon_result
+        )
         }"
     )
+
 
 def run():
     """
